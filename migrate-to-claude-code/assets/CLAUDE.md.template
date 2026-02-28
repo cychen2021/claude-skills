@@ -1,0 +1,75 @@
+# CLAUDE.md
+
+This file provides guidance for AI assistants working on the **[PROJECT_NAME]** codebase.
+
+## Project Overview
+
+[Brief description of what the project does, its main purpose, and key features]
+
+## Repository Structure
+
+```
+[project-root]/
+├── [main directories and their purposes]
+└── [key files]
+```
+
+## Architecture
+
+[High-level architecture description, data flow, module responsibilities]
+
+## Development Workflow
+
+### Prerequisites
+
+[Required tools, runtime versions, dependencies]
+
+### Build
+
+```bash
+[build commands]
+```
+
+### Test
+
+```bash
+[test commands]
+```
+
+### After Editing Code
+
+[Post-edit commands like formatters, linters, etc.]
+
+## Git Commit Conventions
+
+[Project-specific commit message format and conventions]
+
+## Key Conventions
+
+### Code Style
+
+[Language-specific coding standards and conventions]
+
+### Error Handling
+
+[How errors should be handled in this codebase]
+
+### Testing
+
+[Testing philosophy and patterns]
+
+### Dependencies
+
+[Guidelines for adding/managing dependencies]
+
+## Common Tasks
+
+[Step-by-step guides for frequent development tasks]
+
+## What This Project Does
+
+[Clear list of what the project accomplishes]
+
+## What This Project Does NOT Do (Yet)
+
+[Clear list of out-of-scope features or future work]

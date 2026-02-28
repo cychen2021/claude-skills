@@ -1,0 +1,23 @@
+{
+  // Claude Code Configuration
+  "claude-code.permissionMode": "ask",
+  "claude-code.autoResumeEnabled": true,
+
+  // GitHub Copilot Configuration (if you use Copilot alongside Claude Code)
+  "github.copilot.enable": {
+    "*": true
+  },
+
+  // Copilot instructions file (if migrating from copilot-instructions submodule)
+  // Uncomment and adjust path as needed:
+  // "github.copilot.chat.codeGeneration.instructions": [
+  //   {
+  //     "file": ".vscode/copilot-instructions.md"
+  //   }
+  // ],
+
+  // Editor settings
+  "editor.formatOnSave": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true
+}
