@@ -1,6 +1,6 @@
 ---
 name: make-checkpoint
-description: Create periodic manual review checkpoints for the verifuzz codebase. Use this skill when the user explicitly requests to create a checkpoint, make a manual checkpoint, or initiate a code review checkpoint after extended development work. The skill generates a timestamped checkpoint folder containing status summary, diff from previous checkpoint, and tailored review guidelines for both documentation and code.
+description: Create periodic manual review checkpoints for the codebase. Use this skill when the user explicitly requests to create a checkpoint, make a manual checkpoint, or initiate a code review checkpoint after extended development work. The skill generates a timestamped checkpoint folder containing status summary, diff from previous checkpoint, and tailored review guidelines for both documentation and code.
 ---
 
 # Make Checkpoint
@@ -436,6 +436,7 @@ After generating all four files:
    - Use `doc-review-guidelines.md` to review documentation
    - Use `code-review-guidelines.md` to review code
 
-3. Remind user about the `.gitignore` convention:
-   - Checkpoints folder should be added to `.gitignore` if they want these to remain local
-   - Or commit them if they want to track review history in the repository
+3. Remind user about git workflow:
+   - Checkpoints are meant to be committed to track review history in the repository
+   - This provides a historical record of manual review touchpoints
+   - Each checkpoint documents the state at a specific point in time
