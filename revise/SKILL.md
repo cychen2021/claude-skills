@@ -207,6 +207,19 @@ Commits created:
 - [commit hash] Add revision summary for checkpoint cp-YYMMDD
 
 Revision summary saved to: checkpoints/cp-YYMMDD/revision.md
+
+📝 Next Steps:
+As you continue development after this revision, maintain a changelog file:
+  checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md
+
+This changelog should document all changes made after this checkpoint revision:
+- New features implemented
+- Bug fixes
+- Refactorings
+- Documentation updates
+- Dependency changes
+
+This changelog will be referenced when creating the next checkpoint.
 ```
 
 ## Important Notes
