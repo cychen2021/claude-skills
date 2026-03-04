@@ -81,6 +81,89 @@ Analyze the changes made and identify which documentation needs updating:
 
 **Do not skip documentation updates** - even small changes may affect docs.
 
+### 3.5. Checkpoint Changelog Maintenance
+
+If this work is based on a checkpoint, update or create the checkpoint's changelog file:
+
+1. **Check if work is checkpoint-based:**
+   - Look for `x_required_code_changes.md` or references to `cp-YYMMDD` in planning documents
+   - Check git branch name for checkpoint references
+   - If found, note the checkpoint ID (e.g., `cp-260228`)
+
+2. **Locate or create the changelog:**
+   ```bash
+   # Check if checkpoint directory exists
+   ls -la checkpoints/cp-YYMMDD/
+
+   # Check if changelog already exists
+   ls checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md
+   ```
+
+3. **Update or create the changelog file:**
+
+   **File path format:** `checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md`
+
+   **If file exists:** Update it with the new changes
+
+   **If file doesn't exist:** Create it following this format:
+   ```markdown
+   # Changelog After Checkpoint cp-YYMMDD
+
+   This file documents all changes made to the verifuzz codebase after checkpoint cp-YYMMDD was created.
+
+   ## YYYY-MM-DD: [Feature/Fix Name] ([version if applicable])
+
+   ### Breaking Changes
+   - List any breaking API or behavior changes
+
+   ### New Features
+   - List new functionality added
+
+   ### Implementation Files
+   - Key files modified with brief description
+
+   ### Test Updates
+   - Number of tests updated/added
+   - Test coverage information
+
+   ### Documentation Updates
+   - List documentation files updated
+
+   ### PR Information
+   - **Branch**: feature/branch-name
+   - **PR**: #XX (add after PR created)
+   - **Merged**: YYYY-MM-DD (add after merge)
+   - **Merge Commit**: xxxxxxx (add after merge)
+
+   ### Verification
+   - Test results
+   - Build status
+   - Clippy/lint status
+
+   ### Review
+   - Review comments summary
+   - Issues addressed
+   ```
+
+4. **Content to include:**
+   - Date and descriptive title
+   - Breaking changes (if any)
+   - Features/fixes implemented
+   - Files modified with context
+   - Test count and coverage
+   - Documentation updates
+   - PR and merge information (add PR number in step 6, merge info when merged)
+   - Verification results
+
+5. **When to update:**
+   - **Now:** Create/update with implementation details before committing
+   - **After PR creation:** Add PR number to the changelog
+   - **After merge:** Add merge date and commit hash
+
+**IMPORTANT:** This is required by CLAUDE.md's "Checkpoint-based changelog workflow". The changelog helps track progress between checkpoints and is referenced when creating the next checkpoint.
+
+**If no checkpoint reference found:** Skip this step - not all features are checkpoint-based.
+
 ### 4. Git Commit
 
 Create a commit following verifuzz conventions:
@@ -149,6 +232,13 @@ Create a PR using GitHub CLI:
    ```
 
 3. Note the PR number from the output
+
+4. **Update checkpoint changelog (if applicable):**
+   - If you created/updated a checkpoint changelog in step 3.5, update it with the PR number
+   - Edit `checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md`
+   - Add PR number to the "PR Information" section
+   - Commit the update: `git commit -am "Update changelog with PR number"`
+   - Push: `git push`
 
 ### 7. Request Review
 
@@ -248,6 +338,7 @@ This skill works with the verifuzz workflow:
 
 - **Do not proceed** to PR creation if tests are failing
 - **Always update documentation** - even small changes may affect docs
+- **Checkpoint changelog maintenance** is required by CLAUDE.md for checkpoint-based work - see step 3.5
 - **Manual code convention checks** are critical - automated tools don't catch everything
 - The PR body format can be adjusted based on project needs
 - GitHub CLI (`gh`) must be configured and authenticated
@@ -260,7 +351,8 @@ This skill works with the verifuzz workflow:
 The skill completes when:
 1. All tests pass
 2. All documentation is updated
-3. Commits are created and pushed
-4. PR is created and reviews are requested
-5. Review comments (if any) are addressed
-6. User is notified to merge
+3. Checkpoint changelog is updated (if applicable)
+4. Commits are created and pushed
+5. PR is created and reviews are requested
+6. Review comments (if any) are addressed
+7. User is notified to merge
