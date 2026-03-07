@@ -1,6 +1,6 @@
 ---
 name: make-checkpoint
-description: Create periodic manual review checkpoints for the verifuzz codebase. Use this skill when the user explicitly requests to create a checkpoint, make a manual checkpoint, or initiate a code review checkpoint after extended development work. The skill generates a timestamped checkpoint folder containing status summary, diff from previous checkpoint, and tailored review guidelines for both documentation and code.
+description: Create periodic manual review checkpoints for the codebase. Use this skill when the user explicitly requests to create a checkpoint, make a manual checkpoint, or initiate a code review checkpoint after extended development work. The skill generates a timestamped checkpoint folder containing status summary, diff from previous checkpoint, and tailored review guidelines for both documentation and code.
 ---
 
 # Make Checkpoint
@@ -114,10 +114,8 @@ Create a concise summary (200-400 words) covering:
 
 If a previous checkpoint exists, create a comparison document:
 
-**Load previous checkpoint data:**
-- Read `checkpoints/cp-<previous_timestamp>/status-quo.md` for baseline state
-- Check for `checkpoints/cp-<previous_timestamp>/changelog-after-<previous_timestamp>.md` (post-checkpoint changes)
-  - If this changelog exists, incorporate its content into the diff to capture changes made after the previous checkpoint was revised
+**Load previous checkpoint:**
+Read `checkpoints/cp-<previous_timestamp>/status-quo.md`
 
 **Generate diff covering:**
 
@@ -437,22 +435,8 @@ After generating all four files:
    - Review `diff-vs-<previous_cp>.md` to see what changed
    - Use `doc-review-guidelines.md` to review documentation
    - Use `code-review-guidelines.md` to review code
-   - After applying revisions with `/revise`, create `changelog-after-<timestamp>.md` in the checkpoint directory to track subsequent changes
 
-3. Remind user about the `.gitignore` convention:
-   - Checkpoints folder should be added to `.gitignore` if they want these to remain local
-   - Or commit them if they want to track review history in the repository
-
-## Changelog Workflow
-
-After checkpoint creation and subsequent revisions:
-
-1. When the user runs `/revise` to apply review feedback, a `revision.md` is created
-2. As development continues after the revision, maintain a running changelog: `checkpoints/cp-<timestamp>/changelog-after-<timestamp>.md`
-3. This changelog documents all changes made after the checkpoint was revised:
-   - New features implemented
-   - Bug fixes
-   - Refactorings
-   - Documentation updates
-   - Dependency changes
-4. When creating the next checkpoint, this changelog is read and incorporated into the diff analysis to provide complete change tracking
+3. Remind user about git workflow:
+   - Checkpoints are meant to be committed to track review history in the repository
+   - This provides a historical record of manual review touchpoints
+   - Each checkpoint documents the state at a specific point in time
