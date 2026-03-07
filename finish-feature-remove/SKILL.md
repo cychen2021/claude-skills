@@ -181,7 +181,7 @@ If this removal work is based on a checkpoint, update or create the checkpoint's
 
 4. **Content to include:**
    - Date and descriptive title
-   - Breaking changes (what was removed, migration path)
+   - Breaking changes (what was removed, migration path) - **NOTE: Breaking changes are documented ONLY in checkpoint changelogs, never in CLAUDE.md**
    - Files modified with context
    - Test updates
    - Documentation updates
@@ -194,7 +194,7 @@ If this removal work is based on a checkpoint, update or create the checkpoint's
    - **After PR creation:** Add PR number to the changelog
    - **After merge:** Add merge status
 
-**IMPORTANT:** This is required by CLAUDE.md's "Checkpoint-based changelog workflow". The changelog tracks progress between checkpoints and is referenced when creating the next checkpoint.
+**IMPORTANT:** This is required by CLAUDE.md's "Checkpoint-based changelog workflow". The checkpoint changelog is the single source of truth for all changes (including breaking changes) made after the checkpoint. CLAUDE.md reflects only the current state of the codebase without historical sections.
 
 **If no checkpoint reference found:** Skip this step - not all removals are checkpoint-based.
 
