@@ -105,8 +105,7 @@ Analyze the changes made and identify which documentation needs updating:
    - `docs/semantic-analysis.md` - Remove type system documentation for deleted types/rules
    - `docs/examples.md` - Remove or update examples using removed features
    - `README.md` - Update if feature was mentioned in overview or examples
-   - `CLAUDE.md` - Update development conventions if removal affects workflow
-   - `CHANGELOG.md` - Add entry documenting the removal (especially if breaking)
+   - `CLAUDE.md` - Add breaking changes section if removal is breaking
    - Any other `.md` files in `docs/` that referenced the removed feature
 
 4. **For each relevant documentation file:**
@@ -117,25 +116,87 @@ Analyze the changes made and identify which documentation needs updating:
 
 **Do not skip documentation updates** - orphaned documentation can confuse users.
 
-### 5. Breaking Change Validation
+### 5. Checkpoint Changelog Maintenance
 
-If the removal is a breaking change, ensure proper documentation:
+If this removal work is based on a checkpoint, update or create the checkpoint's changelog file:
 
-**Checklist for breaking changes:**
-- [ ] `CHANGELOG.md` updated with breaking change notice
-  - Include clear description of what was removed
-  - Provide migration guidance if applicable
-  - Mark as `[BREAKING]` or similar
-- [ ] Consider version bump:
-  - Major version bump for semver (e.g., 0.3.0 → 0.4.0)
-  - Document in `Cargo.toml` if needed
-- [ ] Migration guide provided (in CHANGELOG or separate doc)
-  - Explain alternatives or workarounds
-  - Provide code examples if applicable
+1. **Check if work is checkpoint-based:**
+   - Look for checkpoint references in branch name or planning documents
+   - Check for `cp-YYMMDD` directory in `checkpoints/`
+   - If found, note the checkpoint ID
 
-**If non-breaking:**
-- Still document the removal in CHANGELOG under "Internal Changes" or "Removed"
-- No version bump required
+2. **Locate or create the changelog:**
+   ```bash
+   # Find the latest checkpoint
+   ls -la checkpoints/
+
+   # Check if changelog exists
+   ls checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md
+   ```
+
+3. **Update or create the changelog file:**
+
+   **File path format:** `checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md`
+
+   **If file exists:** Add a new dated section for this removal
+
+   **If file doesn't exist:** Create it following this format:
+   ```markdown
+   # Changelog After Checkpoint cp-YYMMDD
+
+   This file documents all changes made to the verifuzz codebase after checkpoint cp-YYMMDD was created.
+
+   ## YYYY-MM-DD: [Removal Description] ([version if applicable])
+
+   ### Breaking Changes
+   - List what was removed from public API
+   - Note any behavior changes
+
+   ### Implementation Files
+   - Files modified with brief description
+
+   ### Test Updates
+   - Number of tests updated/removed
+   - Test pass status
+
+   ### Documentation Updates
+   - List documentation files updated
+
+   ### PR Information
+   - **Branch**: remove/branch-name
+   - **PR**: #XX (add after PR created)
+   - **Status**: Open/Merged
+
+   ### Verification
+   - Test results
+   - Build status
+
+   ### Statistics
+   - Occurrences removed
+   - Lines changed
+
+   ### Review
+   - Review status
+   ```
+
+4. **Content to include:**
+   - Date and descriptive title
+   - Breaking changes (what was removed, migration path)
+   - Files modified with context
+   - Test updates
+   - Documentation updates
+   - PR information (add PR number after creation)
+   - Verification results
+   - Statistics (lines changed, occurrences removed)
+
+5. **When to update:**
+   - **Now:** Create/update with removal details before committing
+   - **After PR creation:** Add PR number to the changelog
+   - **After merge:** Add merge status
+
+**IMPORTANT:** This is required by CLAUDE.md's "Checkpoint-based changelog workflow". The changelog tracks progress between checkpoints and is referenced when creating the next checkpoint.
+
+**If no checkpoint reference found:** Skip this step - not all removals are checkpoint-based.
 
 ### 6. Git Commit
 
@@ -333,7 +394,7 @@ The skill completes when:
 1. All tests pass
 2. No orphaned references remain
 3. All documentation is updated
-4. Breaking change validation complete (if applicable)
+4. Checkpoint changelog updated (if applicable)
 5. Commits are created and pushed
 6. PR is created and reviews are requested
 7. Review comments (if any) are addressed
