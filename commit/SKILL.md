@@ -7,6 +7,10 @@ Create a git commit following this project's conventions. Handles both regular r
 
 ## Steps
 
+### 0. Check the current branch
+
+Sometimes the user may change the branch outside of the current session. Check the current branch with `git status` to ensure not committing on the wrong branch.
+
 ### 1. Check for submodules
 
 First, check if the repository has submodules by running:
