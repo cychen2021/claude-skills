@@ -48,6 +48,12 @@ mkdir -p checkpoints/cp-<timestamp>
 
 Gather information about the current state:
 
+**Version verification:**
+- Check current version: `cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "verifuzz") | .version'`
+- Verify version in Cargo.toml matches "Current Version" in CLAUDE.md
+- If versions are out of sync, note this as a critical issue in status-quo.md
+- Record the current version in the checkpoint's status-quo.md
+
 **Repository state:**
 - Run `git status` to see modified/untracked files
 - Run `git log --oneline -20` to see recent commits
@@ -79,6 +85,8 @@ Create a concise summary (200-400 words) covering:
 
 ## Overview
 [1-2 sentence project state summary]
+
+**Version:** [version from Cargo.toml]
 
 ## Architecture
 - Core modules: [list key src/ modules]

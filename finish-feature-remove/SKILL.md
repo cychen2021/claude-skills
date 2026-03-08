@@ -11,6 +11,30 @@ Complete a feature removal with quality checks, testing, orphaned reference veri
 
 ### 1. Pre-commit Quality Checks
 
+**Version Verification:**
+
+Check that version numbers are synchronized across the codebase:
+
+```bash
+# Check current version in Cargo.toml
+CARGO_VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "verifuzz") | .version')
+echo "Cargo.toml version: $CARGO_VERSION"
+
+# Check version in CLAUDE.md
+grep -A1 "Current Version:" CLAUDE.md
+```
+
+Verify synchronization:
+- [ ] Version in `Cargo.toml` matches "Current Version" in CLAUDE.md
+- [ ] If removal contains breaking changes (most removals are breaking):
+  - [ ] Version was incremented in `Cargo.toml` (following semver MAJOR bump)
+  - [ ] "Current Version" in CLAUDE.md was updated
+  - [ ] Breaking changes and version bump documented in checkpoint changelog
+  - [ ] CLAUDE.md updated to reflect current state (no historical sections)
+- [ ] If removal has NO breaking changes (rare - internal-only removal):
+  - [ ] Version was NOT changed (per CLAUDE.md policy)
+  - [ ] Removal documented in checkpoint changelog or commit messages
+
 Run automated formatting and fixes:
 
 ```bash
