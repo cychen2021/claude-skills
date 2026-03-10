@@ -57,6 +57,8 @@ Based on the user's instructions in `x_review_comments.md`, apply all requested 
 - Improve naming or code clarity
 - Extract helpers or remove duplication
 
+**Note:** For structural refactoring requests (code duplication, complex functions, module organization, architecture improvements), leverage the techniques and patterns documented in the `refactor-codebase` skill. While `revise` is prescriptive (follow user instructions), you can apply refactoring best practices when the user requests structural improvements.
+
 Work through each item systematically, making the changes as specified by the user.
 
 ### Step 4: Run Verification Checks

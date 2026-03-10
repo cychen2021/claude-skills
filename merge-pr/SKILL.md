@@ -127,9 +127,55 @@ If any verification step fails:
    ```
 5. **Re-run verification**: Repeat Step 5 until all checks pass
 
-### Step 7: Complete Merge
+### Step 7: Update Checkpoint Changelog
 
-Once all verification passes:
+After verification passes but before pushing to main, update the checkpoint changelog if one exists:
+
+**Check for active checkpoint:**
+```bash
+# Find the latest checkpoint
+latest_checkpoint=$(ls -1d checkpoints/cp-* 2>/dev/null | sort -r | head -n1)
+
+# Check if changelog exists
+if [ -n "$latest_checkpoint" ]; then
+  changelog_file="$latest_checkpoint/changelog-after-$(basename $latest_checkpoint | sed 's/cp-//').md"
+  if [ -f "$changelog_file" ]; then
+    echo "Found checkpoint changelog: $changelog_file"
+  fi
+fi
+```
+
+**If checkpoint changelog exists:**
+
+1. **Read the changelog** to understand the current format and existing entries
+2. **Add or update the PR entry** with merge information:
+   - Update "**Merged**" date to today's date
+   - Add "**Merge Commit**" hash from the merge commit
+   - Verify all PR information is complete
+
+3. **Example update:**
+   ```markdown
+   ### PR Information
+
+   - **Branch**: feature/branch-name
+   - **PR**: #XX
+   - **Merged**: 2026-03-10  # ← Add this
+   - **Merge Commit**: abc1234  # ← Add this
+   ```
+
+4. **Commit the changelog update:**
+   ```bash
+   git add "$changelog_file"
+   git commit -m "Update checkpoint changelog with PR #XX merge information"
+   ```
+
+**If no checkpoint changelog exists:** Skip this step.
+
+**IMPORTANT:** This maintains the checkpoint-based changelog workflow required by CLAUDE.md. The checkpoint changelog is the single source of truth for all changes (including breaking changes and PR merge history).
+
+### Step 8: Push to Main
+
+Once all verification passes and changelog is updated:
 
 ```bash
 # Push to main
@@ -138,7 +184,7 @@ git push origin main
 
 Inform the user that the PR has been successfully merged.
 
-### Step 8: Branch Cleanup (Optional)
+### Step 9: Branch Cleanup (Optional)
 
 After a successful merge, ask the user if they want to delete the merged branch:
 

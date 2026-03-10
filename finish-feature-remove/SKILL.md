@@ -305,6 +305,13 @@ Create a PR using GitHub CLI:
 
 3. Note the PR number from the output
 
+4. **Update checkpoint changelog (if applicable):**
+   - If you created/updated a checkpoint changelog in step 5, update it with the PR number
+   - Edit `checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md`
+   - Add PR number to the "PR Information" section
+   - Commit the update: `git commit -am "Update changelog with PR #<number>"`
+   - Push: `git push`
+
 ### 9. Request Review
 
 Request review from GitHub Copilot or other reviewers:
