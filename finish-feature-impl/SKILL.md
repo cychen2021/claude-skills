@@ -65,9 +65,10 @@ Run the full test suite and fix any failures:
 2. If tests fail:
    - Invoke `/debug-tests` skill to debug and fix failures
    - Repeat until all tests pass
-3. For Rhai feature testing, ensure both runs pass:
-   - `cargo test` (without rhai feature, 28 tests)
-   - `cargo test --features rhai` (with rhai feature, 32 tests)
+3. Verify all test types pass:
+   - `cargo test --lib` - Unit tests only (298 tests)
+   - `cargo test --test '*'` - Integration tests only (18 tests)
+   - `cargo test` - All tests (unit + integration)
 
 **Do not proceed until all tests pass.**
 
