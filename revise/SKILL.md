@@ -185,7 +185,67 @@ EOF
 )"
 ```
 
-### Step 7: Report Completion
+### Step 7: Create Empty Changelog File
+
+Create an empty changelog file for future development work after this revision:
+
+```bash
+# Extract checkpoint date from latest_checkpoint
+cp_date=$(basename "$latest_checkpoint" | sed 's/cp-//')
+
+# Create empty changelog file
+cat > "$latest_checkpoint/changelog-after-$cp_date.md" << 'EOF'
+# Changelog After Checkpoint cp-YYMMDD
+
+**Note:** Replace YYMMDD with the actual checkpoint date.
+
+This file tracks all changes made after the checkpoint revision. Document changes as they happen:
+
+## Features
+
+-
+
+## Bug Fixes
+
+-
+
+## Refactorings
+
+-
+
+## Documentation Updates
+
+-
+
+## Dependency Changes
+
+-
+
+## Breaking Changes
+
+-
+EOF
+```
+
+**Commit the empty changelog:**
+
+```bash
+# Stage the changelog file
+git add "$latest_checkpoint/changelog-after-$cp_date.md"
+
+# Create commit
+git commit -m "$(cat <<'EOF'
+Create empty changelog for post-revision development
+
+This changelog will track all changes made after checkpoint cp-YYMMDD
+revision until the next checkpoint is created.
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Step 8: Report Completion
 
 Provide a summary to the user:
 
@@ -205,19 +265,23 @@ Verification:
 Commits created:
 - [commit hash] Apply checkpoint cp-YYMMDD review feedback
 - [commit hash] Add revision summary for checkpoint cp-YYMMDD
+- [commit hash] Create empty changelog for post-revision development
 
-Revision summary saved to: checkpoints/cp-YYMMDD/revision.md
+Files created:
+- checkpoints/cp-YYMMDD/revision.md - Complete revision summary
+- checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md - Empty changelog for future changes
 
 📝 Next Steps:
-As you continue development after this revision, maintain a changelog file:
+As you continue development after this revision, document all changes in:
   checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md
 
-This changelog should document all changes made after this checkpoint revision:
+This changelog should be updated as you make changes:
 - New features implemented
 - Bug fixes
 - Refactorings
 - Documentation updates
 - Dependency changes
+- Breaking changes
 
 This changelog will be referenced when creating the next checkpoint.
 ```
@@ -228,7 +292,8 @@ This changelog will be referenced when creating the next checkpoint.
 - **Make all changes requested** - don't skip items unless explicitly told by the user
 - **Run all verification checks** - do not commit if checks fail
 - **Be thorough in the revision summary** - document every significant change made
-- **Separate commits** - one for the actual changes, one for the revision summary document
+- **Create three commits** - one for the actual changes, one for the revision summary document, one for the empty changelog
+- **Create empty changelog** - always create the empty changelog file after revision to prepare for future development
 - **Check for x_review_comments.md** - if this file doesn't exist, ask the user to create it with their revision instructions
 
 ## Error Handling
@@ -251,5 +316,6 @@ If any issues occur during the process:
 4. Applies all requested modifications
 5. Runs `cargo fix`, `cargo fmt`, `cargo test`, `cargo clippy`
 6. Creates `checkpoints/cp-260218/revision.md`
-7. Creates two commits
-8. Reports completion with summary
+7. Creates `checkpoints/cp-260218/changelog-after-260218.md` (empty template)
+8. Creates three commits (changes, revision summary, empty changelog)
+9. Reports completion with summary
