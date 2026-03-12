@@ -1,6 +1,6 @@
 ---
 name: finish-feature-remove
-description: Complete a feature removal in the verifuzz codebase with quality checks, testing, orphaned reference verification, documentation updates, commits, and PR creation. Runs cargo fix/fmt, executes full test suite with fixes, verifies no orphaned references remain, updates relevant documentation, creates commits, pushes to remote, creates PR via gh CLI, and manages review workflow. AUTOMATICALLY use this skill when feature removal work is complete and all todos in the removal checklist are finished, or when the user explicitly requests to "finish removal", "wrap up removal", "complete removal and create PR", or indicates the removal is ready for finalization.
+description: Complete a feature removal in the nrv codebase with quality checks, testing, orphaned reference verification, documentation updates, commits, and PR creation. Runs cargo fix/fmt, executes full test suite with fixes, verifies no orphaned references remain, updates relevant documentation, creates commits, pushes to remote, creates PR via gh CLI, and manages review workflow. AUTOMATICALLY use this skill when feature removal work is complete and all todos in the removal checklist are finished, or when the user explicitly requests to "finish removal", "wrap up removal", "complete removal and create PR", or indicates the removal is ready for finalization.
 ---
 
 # Finish Feature Remove
@@ -17,7 +17,7 @@ Check that version numbers are synchronized across the codebase:
 
 ```bash
 # Check current version in Cargo.toml
-CARGO_VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "verifuzz") | .version')
+CARGO_VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "nrv") | .version')
 echo "Cargo.toml version: $CARGO_VERSION"
 
 # Check version in CLAUDE.md
@@ -44,7 +44,7 @@ cargo fmt
 
 **Manual Code Convention Checklist:**
 
-After automated fixes, manually verify the following verifuzz conventions:
+After automated fixes, manually verify the following nrv conventions:
 
 - [ ] `use` statements are at most one nested layer deep
   - Good: `use std::fs::{File, OpenOptions}`
@@ -168,7 +168,7 @@ If this removal work is based on a checkpoint, update or create the checkpoint's
    ```markdown
    # Changelog After Checkpoint cp-YYMMDD
 
-   This file documents all changes made to the verifuzz codebase after checkpoint cp-YYMMDD was created.
+   This file documents all changes made to the nrv codebase after checkpoint cp-YYMMDD was created.
 
    ## YYYY-MM-DD: [Removal Description] ([version if applicable])
 
@@ -224,7 +224,7 @@ If this removal work is based on a checkpoint, update or create the checkpoint's
 
 ### 6. Git Commit
 
-Create a commit following verifuzz conventions:
+Create a commit following nrv conventions:
 
 1. Invoke the `/commit` skill to create a commit with proper message format
 2. The commit skill will:
@@ -397,7 +397,7 @@ Once all reviews are addressed and tests pass:
 
 ## Integration with Other Skills
 
-This skill works with the verifuzz workflow:
+This skill works with the nrv workflow:
 
 - **Triggered after:** `/init-feature-remove` completes removal
 - **Uses internally:**

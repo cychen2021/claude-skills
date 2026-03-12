@@ -1,6 +1,6 @@
 # Refactoring Workflow
 
-This document describes the detailed refactoring workflow for verifuzz maintenance.
+This document describes the detailed refactoring workflow for nrv maintenance.
 
 ## Execution Flow
 

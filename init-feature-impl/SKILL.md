@@ -1,6 +1,6 @@
 ---
 name: init-feature-impl
-description: Initialize a new feature implementation for the verifuzz codebase. Creates a feature branch with proper naming convention, optionally designs an implementation plan, and prepares for implementation. AUTOMATICALLY use this skill when the user explicitly requests a new feature with phrases like "I want a new feature", "Let's add [feature]", "Start implementing [feature]", "Begin new feature [description]", or any clear request to start feature development work.
+description: Initialize a new feature implementation for the nrv codebase. Creates a feature branch with proper naming convention, optionally designs an implementation plan, and prepares for implementation. AUTOMATICALLY use this skill when the user explicitly requests a new feature with phrases like "I want a new feature", "Let's add [feature]", "Start implementing [feature]", "Begin new feature [description]", or any clear request to start feature development work.
 ---
 
 # Init Feature Impl
@@ -20,7 +20,7 @@ If the feature request is ambiguous or lacks details, ask clarifying questions u
 
 ### 2. Create Feature Branch
 
-Create a feature branch following the verifuzz naming convention:
+Create a feature branch following the nrv naming convention:
 
 ```bash
 git checkout -b feature/<descriptive-name>
@@ -84,7 +84,7 @@ Once approved:
 1. Use `TodoWrite` tool to create a task list for the implementation
 2. Start implementing following the approved plan
 3. Mark todos as `in_progress` and `completed` as work progresses
-4. Follow verifuzz code conventions (see CLAUDE.md):
+4. Follow nrv code conventions (see CLAUDE.md):
    - Update both `SemanticAnalyzer` and `TypedSemanticAnalyzer` for AST changes
    - Add tests for all new code paths
    - Keep `use` statements at most one level deep
@@ -100,11 +100,11 @@ Example:
 
 ## Integration with Other Skills
 
-This skill is designed to work with the full verifuzz workflow:
+This skill is designed to work with the full nrv workflow:
 
 - **After implementation:** Use `/finish-feature-impl` to complete the feature with testing, docs, and PR creation
 - **During implementation:** Use `/test` to verify changes, `/debug-tests` to fix failures
-- **For commits:** Use `/commit` to follow verifuzz commit conventions
+- **For commits:** Use `/commit` to follow nrv commit conventions
 
 ## Notes
 

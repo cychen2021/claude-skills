@@ -1,6 +1,6 @@
 ---
 name: init-feature-remove
-description: Initialize feature removal for the verifuzz codebase. Creates a removal branch with proper naming convention, analyzes dependencies, checks for breaking changes, and creates a removal plan. AUTOMATICALLY use this skill when the user explicitly requests to remove a feature with phrases like "Remove feature X", "Delete the Y functionality", "Deprecate Z", "Get rid of [feature]", or any clear request to remove existing functionality from the codebase.
+description: Initialize feature removal for the nrv codebase. Creates a removal branch with proper naming convention, analyzes dependencies, checks for breaking changes, and creates a removal plan. AUTOMATICALLY use this skill when the user explicitly requests to remove a feature with phrases like "Remove feature X", "Delete the Y functionality", "Deprecate Z", "Get rid of [feature]", or any clear request to remove existing functionality from the codebase.
 ---
 
 # Init Feature Remove
@@ -21,7 +21,7 @@ If the removal request is ambiguous or lacks details, ask clarifying questions u
 
 ### 2. Create Removal Branch
 
-Create a removal branch following the verifuzz naming convention:
+Create a removal branch following the nrv naming convention:
 
 ```bash
 git checkout -b remove/<descriptive-name>
@@ -76,7 +76,7 @@ rg "<feature>" docs/examples.md
 **Check CLI integration:**
 ```bash
 # Search for CLI arguments or subcommands
-rg "<feature>" src/bin/verifuzz.rs
+rg "<feature>" src/bin/nrv.rs
 ```
 
 Document all findings for the removal plan.
@@ -158,7 +158,7 @@ Once approved:
    - Update documentation
    - Verify tests pass
 
-5. Follow verifuzz code conventions (see CLAUDE.md):
+5. Follow nrv code conventions (see CLAUDE.md):
    - If removing a `Formula` variant, update both `SemanticAnalyzer` and `TypedSemanticAnalyzer`
    - Keep commits focused and atomic
    - Run `cargo fix --allow-dirty` and `cargo fmt` after changes
@@ -166,11 +166,11 @@ Once approved:
 
 ## Integration with Other Skills
 
-This skill is designed to work with the full verifuzz workflow:
+This skill is designed to work with the full nrv workflow:
 
 - **After removal:** Use `/finish-feature-remove` to complete the removal with testing, docs verification, and PR creation
 - **During removal:** Use `/test` to verify changes, `/debug-tests` to fix failures
-- **For commits:** Use `/commit` to follow verifuzz commit conventions
+- **For commits:** Use `/commit` to follow nrv commit conventions
 
 ## Notes
 

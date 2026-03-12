@@ -1,6 +1,6 @@
 ---
 name: debug-tests
-description: Debug and fix failing unit tests in verifuzz. Use when `cargo test` reports failures.
+description: Debug and fix failing unit tests in nrv. Use when `cargo test` reports failures.
 ---
 
 Debug and fix all failing tests. Work through failures one at a time.

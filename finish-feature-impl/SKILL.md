@@ -1,6 +1,6 @@
 ---
 name: finish-feature-impl
-description: Complete a feature implementation in the verifuzz codebase with quality checks, testing, documentation updates, commits, and PR creation. Runs cargo fix/fmt, executes full test suite with fixes, updates relevant documentation, creates commits, pushes to remote, creates PR via gh CLI, and manages review workflow. AUTOMATICALLY use this skill when feature implementation work is complete and all todos in the feature checklist are finished, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
+description: Complete a feature implementation in the nrv codebase with quality checks, testing, documentation updates, commits, and PR creation. Runs cargo fix/fmt, executes full test suite with fixes, updates relevant documentation, creates commits, pushes to remote, creates PR via gh CLI, and manages review workflow. AUTOMATICALLY use this skill when feature implementation work is complete and all todos in the feature checklist are finished, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
 ---
 
 # Finish Feature Impl
@@ -17,7 +17,7 @@ Check that version numbers are synchronized across the codebase:
 
 ```bash
 # Check current version in Cargo.toml
-CARGO_VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "verifuzz") | .version')
+CARGO_VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "nrv") | .version')
 echo "Cargo.toml version: $CARGO_VERSION"
 
 # Check version in CLAUDE.md
@@ -44,7 +44,7 @@ cargo fmt
 
 **Manual Code Convention Checklist:**
 
-After automated fixes, manually verify the following verifuzz conventions:
+After automated fixes, manually verify the following nrv conventions:
 
 - [ ] `use` statements are at most one nested layer deep
   - Good: `use std::fs::{File, OpenOptions}`
@@ -134,7 +134,7 @@ If this work is based on a checkpoint, update or create the checkpoint's changel
    ```markdown
    # Changelog After Checkpoint cp-YYMMDD
 
-   This file documents all changes made to the verifuzz codebase after checkpoint cp-YYMMDD was created.
+   This file documents all changes made to the nrv codebase after checkpoint cp-YYMMDD was created.
 
    ## YYYY-MM-DD: [Feature/Fix Name] ([version if applicable])
 
@@ -191,7 +191,7 @@ If this work is based on a checkpoint, update or create the checkpoint's changel
 
 ### 4. Git Commit
 
-Create a commit following verifuzz conventions:
+Create a commit following nrv conventions:
 
 1. Invoke the `/commit` skill to create a commit with proper message format
 2. The commit skill will:
@@ -350,7 +350,7 @@ Once all reviews are addressed and tests pass:
 
 ## Integration with Other Skills
 
-This skill works with the verifuzz workflow:
+This skill works with the nrv workflow:
 
 - **Triggered after:** `/init-feature-impl` completes implementation
 - **Uses internally:**

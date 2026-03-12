@@ -1,6 +1,6 @@
 ---
 name: test
-description: Run the full post-edit verification sequence for verifuzz. Use when code changes are complete and need verification, or when the user requests to run tests or verify changes.
+description: Run the full post-edit verification sequence for nrv. Use when code changes are complete and need verification, or when the user requests to run tests or verify changes.
 ---
 
 Run the full post-edit verification sequence required by this project, in order:

@@ -49,7 +49,7 @@ mkdir -p checkpoints/cp-<timestamp>
 Gather information about the current state:
 
 **Version verification:**
-- Check current version: `cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "verifuzz") | .version'`
+- Check current version: `cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "nrv") | .version'`
 - Verify version in Cargo.toml matches "Current Version" in CLAUDE.md
 - If versions are out of sync, note this as a critical issue in status-quo.md
 - Record the current version in the checkpoint's status-quo.md
