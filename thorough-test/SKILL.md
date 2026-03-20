@@ -19,9 +19,18 @@ If any tests fail, fix them before proceeding. For snapshot failures, run `cargo
 
 ## Step 2: Measure baseline coverage
 
-```
-cargo llvm-cov --lib
-```
+Choose the right flag for the project type:
+
+- **Bin-only crate** (e.g. `src/main.rs`, no `src/lib.rs`): use the plain command — `--lib` instruments only library targets and will show 0% for a binary-only project.
+  ```
+  cargo llvm-cov
+  ```
+- **Lib crate or workspace with a lib target**: `--lib` limits measurement to the library, excluding integration tests and the binary entry point.
+  ```
+  cargo llvm-cov --lib
+  ```
+
+When in doubt, check `Cargo.toml` for `[lib]` vs `[[bin]]` sections.
 
 Note the coverage percentage per file. Focus effort on files below 95%.
 
@@ -58,7 +67,7 @@ Tests for `ui.rs` go in `src/ui.rs` inside a `#[cfg(test)]` module. Add `use rat
 
 ### message.rs / parser.rs / navigation.rs (partial coverage)
 
-These are pure logic modules. Run `cargo llvm-cov --lib` and examine the "Missed Lines" count. Common gaps:
+These are pure logic modules. Run `cargo llvm-cov` and examine the "Missed Lines" count. Common gaps:
 - Error/edge-case branches (empty input, malformed JSON, missing fields)
 - Less-used enum variants in `Display` or `From` impls
 - Functions called only from `main.rs` (not reachable via `--lib`)
@@ -70,7 +79,7 @@ Write small unit tests in `#[cfg(test)]` blocks at the bottom of each file to hi
 After adding tests:
 ```
 cargo test
-cargo llvm-cov --lib
+cargo llvm-cov
 ```
 
 Repeat Step 3 until coverage plateaus or reaches the target (aim for >90% total, >80% per file).
@@ -87,7 +96,7 @@ Accept correct snapshots. If an existing snapshot is stale after a legitimate UI
 
 ## Key facts about this codebase
 
-- `main.rs` is always excluded from `--lib` coverage (it's the binary entry point).
+- `main.rs` is the binary entry point and its coverage is typically minimal/excluded.
 - Snapshot test fixtures live in `src/snapshots/`.
 - Test data fixture: `example-history.jsonl` in the project root.
 - `insta` is the snapshot testing library (`dev-dependency`).
