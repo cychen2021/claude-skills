@@ -176,6 +176,11 @@ In this case, `<previous_cp_timestamp>` will be `none`.
 
 ### Step 7: Generate `doc-review-guidelines.md`
 
+> **Path naming convention:** Always use full paths (e.g. `ltrn-mapper/src/app.rs`,
+> `docs/draft/chiscript-plan.md`) when referencing files in the review guidelines.
+> Avoid ambiguous short names like `app.rs` or `editor.rs` that could refer to
+> multiple files in the workspace.
+
 Create tailored documentation review guidelines:
 
 ```markdown
@@ -273,6 +278,10 @@ These guidelines help you systematically review documentation for accuracy, comp
 </markdown>
 
 ### Step 8: Generate `code-review-guidelines.md`
+
+> **Path naming convention:** Always use full paths (e.g. `ltrn-mapper/src/app.rs`,
+> `ltrn/src/game/loader.rs`) when referencing files in the review guidelines.
+> Avoid ambiguous short names like `app.rs` that could refer to multiple files.
 
 Create tailored code review guidelines:
 
