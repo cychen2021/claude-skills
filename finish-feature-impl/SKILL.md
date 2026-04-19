@@ -1,383 +1,240 @@
 ---
 name: finish-feature-impl
-description: Complete a feature implementation in the nrv codebase with quality checks, testing, documentation updates, commits, and PR creation. Runs cargo fix/fmt, executes full test suite with fixes, updates relevant documentation, creates commits, pushes to remote, creates PR via gh CLI, and manages review workflow. AUTOMATICALLY use this skill when feature implementation work is complete and all todos in the feature checklist are finished, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
+description: Complete a feature implementation with quality checks, testing, documentation updates, commits, and PR creation. Supports common Rust (Cargo) and Python projects (uv/Poetry/pip). Runs the appropriate formatter, linter, and test commands for the detected toolchain, updates relevant documentation, creates commits, pushes to remote, creates a PR via the `gh` CLI, and manages the review workflow. AUTOMATICALLY use this skill when feature implementation work is complete, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
 ---
 
 # Finish Feature Impl
 
-Complete a feature implementation with quality checks, testing, documentation, and PR workflow.
+Complete a feature implementation with quality checks, testing, documentation, and PR workflow across common Rust and Python project layouts.
 
-## Workflow
+## 0. Detect the project type
 
-### 1. Pre-commit Quality Checks
+Before running any tool, identify the project type from files at the repository root. Use this detection to pick the right commands in every later step.
 
-**Version Verification:**
+- **Rust (Cargo)** — `Cargo.toml` at the repo root (or at a workspace root).
+- **Python** — a `pyproject.toml` at the repo root. Further distinguish the workflow by looking at the file:
+  - **uv** — `[tool.uv]` section, or a `uv.lock` file, or a `[build-system]` `build-backend = "uv_build"`, or project scripts installed via `uv sync`.
+  - **Poetry** — `[tool.poetry]` section, or a `poetry.lock` file.
+  - **Hatch** — `[tool.hatch]` section.
+  - **pip / setuptools / PEP 621 plain** — none of the above; a `requirements*.txt` or a plain `[project]` table.
+- **Mixed / polyglot** — if both `Cargo.toml` and `pyproject.toml` exist (e.g. a PyO3 crate), run the checks for both.
 
-Check that version numbers are synchronized across the codebase:
+If detection is ambiguous, ask the user which toolchain to use before proceeding.
 
-```bash
-# Check current version in Cargo.toml
-CARGO_VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "nrv") | .version')
-echo "Cargo.toml version: $CARGO_VERSION"
+The command tables below are keyed off this detection. Use the column that matches the detected type; skip the others.
 
-# Check version in CLAUDE.md
-grep -A1 "Current Version:" CLAUDE.md
-```
+## 1. Pre-commit Quality Checks
 
-Verify synchronization:
-- [ ] Version in `Cargo.toml` matches "Current Version" in CLAUDE.md
-- [ ] If feature contains breaking changes:
-  - [ ] Version was incremented in `Cargo.toml` (following semver)
-  - [ ] "Current Version" in CLAUDE.md was updated
-  - [ ] Breaking changes and version bump documented in checkpoint changelog
-  - [ ] CLAUDE.md updated to reflect current state (no historical sections)
-- [ ] If feature has NO breaking changes:
-  - [ ] Version was NOT changed (per CLAUDE.md policy)
-  - [ ] Feature documented in checkpoint changelog or commit messages
+### 1a. Version verification (if versioned)
 
-Run automated formatting and fixes:
+Check the project's declared version and keep it in sync with any documented "current version" in `CLAUDE.md` or `README.md`.
 
-```bash
-cargo fix --allow-dirty
-cargo fmt
-```
+| Project type | Where the version lives | How to read it |
+|---|---|---|
+| Rust (Cargo) | `Cargo.toml` `[package] version` | `cargo metadata --format-version 1 \| jq -r '.packages[] \| select(.name == "<crate>") \| .version'` |
+| Python       | `pyproject.toml` `[project] version` (PEP 621) or `[tool.poetry] version` | `grep '^version' pyproject.toml` (or `uv version` / `poetry version --short` if the tool is installed) |
 
-**Manual Code Convention Checklist:**
+Checklist (apply only if the project actually tracks a "current version" outside the manifest):
 
-After automated fixes, manually verify the following nrv conventions:
+- [ ] Manifest version matches any "Current Version" line in `CLAUDE.md` / `README.md`.
+- [ ] If the feature contains **breaking changes**:
+  - [ ] Version bumped in the manifest following SemVer.
+  - [ ] "Current Version" doc references updated.
+  - [ ] Breaking changes documented in a changelog / release notes file (if the project keeps one).
+- [ ] If the feature has **no breaking changes**:
+  - [ ] Version was not changed (unless the project's policy says otherwise).
+  - [ ] Feature summarized in changelog or commit messages.
 
-- [ ] `use` statements are at most one nested layer deep
-  - Good: `use std::fs::{File, OpenOptions}`
-  - Bad: `use std::{fs::File, io::Write}`
-- [ ] New `Formula` variants are handled in both `SemanticAnalyzer` and `TypedSemanticAnalyzer`
-- [ ] All public functions have `///` rustdoc comments with examples for non-trivial items
-- [ ] All AST types derive `Debug` and `PartialEq`
-- [ ] No `.unwrap()` or `.expect()` in library code (only in tests or bin/)
-- [ ] Error messages include contextual information (predicate name, expected vs actual)
+If the project doesn't track a version anywhere other than the manifest, skip this sub-step.
 
-If any manual fixes are needed, make them now.
+### 1b. Automated formatting and fixes
 
-### 2. Testing
+Run the project's standard formatter and auto-fixer.
 
-Run the full test suite and fix any failures:
+| Project type | Commands |
+|---|---|
+| Rust (Cargo) | `cargo fix --allow-dirty --allow-staged` then `cargo fmt` |
+| Python (uv, repo has `format.py` / `type_check.py` scripts) | `uv run format.py` (and any project-provided fix script) |
+| Python (uv, no wrapper script) | `uv run ruff format .` and `uv run ruff check --fix .` if `ruff` is a dependency; otherwise `uvx ruff format .` and `uvx ruff check --fix .` |
+| Python (Poetry) | `poetry run ruff format .` and `poetry run ruff check --fix .` (or `black` / `isort` if the project uses them) |
+| Python (pip) | `ruff format .` / `black .` / `isort .` — whichever is configured in `pyproject.toml` |
 
-1. Invoke the `/test` skill to run the complete post-edit verification sequence
-2. If tests fail:
-   - Invoke `/debug-tests` skill to debug and fix failures
-   - Repeat until all tests pass
-3. Verify all test types pass:
-   - `cargo test --lib` - Unit tests only (298 tests)
-   - `cargo test --test '*'` - Integration tests only (18 tests)
-   - `cargo test` - All tests (unit + integration)
+If the repository provides wrapper scripts (e.g. `format.py`, `scripts/fmt.sh`, a `justfile`, or a `Makefile` target), prefer those — they encode the project's authoritative configuration.
 
-**Do not proceed until all tests pass.**
+### 1c. Language-agnostic convention checklist
 
-### 3. Documentation Updates
+Verify manually — automated tools won't catch all of these:
 
-Analyze the changes made and identify which documentation needs updating:
+- [ ] No stray debug prints / `dbg!` / `console.log` / `print(` additions in library or production code.
+- [ ] Public items have docstrings/rustdoc with at least a one-line summary.
+- [ ] Errors carry enough context for a caller to act on them (not bare `"error"`).
+- [ ] No `unwrap`/`expect` (Rust) or broad `except:` catches (Python) in non-test code unless the invariant is documented.
+- [ ] Imports/`use` statements follow the project's existing style (nesting depth, grouping, ordering).
+- [ ] New public API items are referenced from somewhere — or deliberately left for a follow-up, with a TODO that says so.
 
-1. **Find all documentation files:**
+If the project's `CLAUDE.md` lists additional conventions, fold them in here as well.
+
+## 2. Testing
+
+Run the project's full test suite and fix any failures before moving on. **Do not proceed until tests pass.**
+
+| Project type | Commands |
+|---|---|
+| Rust (Cargo) | `cargo test` (and `cargo test --all-features` if features are in play). For workspaces, `cargo test --workspace`. |
+| Python (uv) | `uv run pytest` (respecting any `pytest.ini` / `pyproject.toml` config). If the project pins a test script, use it. |
+| Python (Poetry) | `poetry run pytest` |
+| Python (pip) | `pytest` (inside the activated virtualenv) |
+
+Additional language-level checks to run if configured:
+
+- **Rust**: `cargo clippy --all-targets -- -D warnings`, and `cargo check` (workspace) if clippy isn't wired up.
+- **Python**: type check via `uv run pyright` / `poetry run pyright` / `mypy .`, whichever the project uses. If the repo provides a `type_check.py` or similar wrapper, prefer that.
+
+If a repo-wide wrapper like `/test` or a `make test` target exists, prefer it — it will encode the canonical sequence.
+
+If tests fail, debug and fix until they pass; do not skip failing tests to get the PR out.
+
+## 3. Documentation Updates
+
+Identify documentation affected by the change and update it.
+
+1. **Enumerate documentation files:**
    ```bash
-   find docs/ -name "*.md" -type f
+   # common locations
    ls *.md
+   find docs/ -name "*.md" -type f 2>/dev/null
    ```
+2. **Look at your diff** (`git diff` / `git diff --stat`) to figure out which surfaces changed: public API, CLI, file formats, config schema, install steps, etc.
+3. **Update the files that actually describe those surfaces.** Common candidates:
+   - `README.md` — install / quickstart / usage examples
+   - `CLAUDE.md` — development workflow, commands, conventions for AI assistants
+   - `docs/api.md` (or `docs/<module>.md`) — public API
+   - `docs/cli.md` — CLI arguments, subcommands, output
+   - `docs/examples.md` / `examples/` — new use cases
+   - `CHANGELOG.md` — if the project maintains one
+   - Rust-specific: rustdoc comments in `src/lib.rs` or module roots that are rendered on docs.rs
+   - Python-specific: Sphinx / MkDocs sources under `docs/`, if present
 
-2. **Analyze changes to determine impact:**
-   - Review `git diff` output from the commit process
-   - Identify which areas were modified (API, CLI, parser, types, semantic analysis, etc.)
+Be thorough but concise. If nothing surfaced in the diff touches user-visible docs, say so explicitly instead of padding edits.
 
-3. **Update relevant documentation:**
+## 4. Git Commit
 
-   **Common documentation areas:**
-   - `docs/api.md` - Public API changes (new functions, changed signatures)
-   - `docs/cli.md` - CLI arguments or output changes
-   - `docs/parser.md` - Grammar, operators, or precedence changes
-   - `docs/semantic-analysis.md` - Type system or validation rule changes
-   - `docs/examples.md` - New use cases or examples
-   - `README.md` - Major features or usage pattern changes
-   - `CLAUDE.md` - Development workflow or convention changes
-   - Any other `.md` files in `docs/` that are affected
+Follow the project's commit conventions. Check `.vscode/general-commit.instructions.md`, `CONTRIBUTING.md`, or a commitlint config for project-specific rules, then fall back to:
 
-4. **For each relevant documentation file:**
-   - Read the current content
-   - Update to reflect the changes made
-   - Be thorough but concise
-   - Ensure examples still work correctly
+- Imperative headline, capitalized verb, no trailing period.
+- Headline short enough to read at a glance (typically ≤ 50–72 chars; some projects cap at "under 10 words").
+- Blank line between headline and body.
+- Body explains the *why*; the diff shows the *what*.
+- Reference code items as `` `code_item` `` and paths as `` `path/to/file` ``.
 
-**Do not skip documentation updates** - even small changes may affect docs.
+If the repo exposes a `/commit` skill, prefer that — it will encode the conventions above.
 
-### 3.5. Checkpoint Changelog Maintenance
+Default: **create a new commit**; do not squash unless the user asks.
 
-If this work is based on a checkpoint, update or create the checkpoint's changelog file:
-
-1. **Check if work is checkpoint-based:**
-   - Look for `x_required_code_changes.md` or references to `cp-YYMMDD` in planning documents
-   - Check git branch name for checkpoint references
-   - If found, note the checkpoint ID (e.g., `cp-260228`)
-
-2. **Locate or create the changelog:**
-   ```bash
-   # Check if checkpoint directory exists
-   ls -la checkpoints/cp-YYMMDD/
-
-   # Check if changelog already exists
-   ls checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md
-   ```
-
-3. **Update or create the changelog file:**
-
-   **File path format:** `checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md`
-
-   **If file exists:** Update it with the new changes
-
-   **If file doesn't exist:** Create it following this format:
-   ```markdown
-   # Changelog After Checkpoint cp-YYMMDD
-
-   This file documents all changes made to the nrv codebase after checkpoint cp-YYMMDD was created.
-
-   ## YYYY-MM-DD: [Feature/Fix Name] ([version if applicable])
-
-   ### Breaking Changes
-   - List any breaking API or behavior changes
-
-   ### New Features
-   - List new functionality added
-
-   ### Implementation Files
-   - Key files modified with brief description
-
-   ### Test Updates
-   - Number of tests updated/added
-   - Test coverage information
-
-   ### Documentation Updates
-   - List documentation files updated
-
-   ### PR Information
-   - **Branch**: feature/branch-name
-   - **PR**: #XX (add after PR created)
-   - **Merged**: YYYY-MM-DD (add after merge)
-   - **Merge Commit**: xxxxxxx (add after merge)
-
-   ### Verification
-   - Test results
-   - Build status
-   - Clippy/lint status
-
-   ### Review
-   - Review comments summary
-   - Issues addressed
-   ```
-
-4. **Content to include:**
-   - Date and descriptive title
-   - Breaking changes (if any) - **NOTE: Breaking changes are documented ONLY in checkpoint changelogs, never in CLAUDE.md**
-   - Features/fixes implemented
-   - Files modified with context
-   - Test count and coverage
-   - Documentation updates
-   - PR and merge information (add PR number in step 6, merge info when merged)
-   - Verification results
-
-5. **When to update:**
-   - **Now:** Create/update with implementation details before committing
-   - **After PR creation:** Add PR number to the changelog
-   - **After merge:** Add merge date and commit hash
-
-**IMPORTANT:** This is required by CLAUDE.md's "Checkpoint-based changelog workflow". The checkpoint changelog is the single source of truth for all changes (including breaking changes) made after the checkpoint. CLAUDE.md reflects only the current state of the codebase without historical sections.
-
-**If no checkpoint reference found:** Skip this step - not all features are checkpoint-based.
-
-### 4. Git Commit
-
-Create a commit following nrv conventions:
-
-1. Invoke the `/commit` skill to create a commit with proper message format
-2. The commit skill will:
-   - Run `git status` and `git diff` to analyze changes
-   - Draft a commit message following conventions (headline + body)
-   - Create the commit with Co-Authored-By line
-   - Verify with `git status`
-
-**Important:** Do NOT squash commits unless explicitly requested. The `/squash` skill is available if needed, but default is to keep commits as-is.
-
-### 5. Push to Remote
-
-Push the feature branch to remote:
+## 5. Push to Remote
 
 ```bash
+# first push of a new branch
 git push -u origin <branch-name>
-```
 
-If the branch already tracks a remote, use:
-
-```bash
+# subsequent pushes
 git push
 ```
 
-### 6. Create Pull Request
+## 6. Create Pull Request
 
-Create a PR using GitHub CLI:
-
-1. Draft PR title and body:
-   - **Title:** Short (under 70 characters), descriptive
-   - **Body format:**
-     ```markdown
-     ## Summary
-     - Bullet point summary of changes (1-3 points)
-
-     ## Changes Made
-     - List key changes by area (parser, semantic, types, etc.)
-
-     ## Test Plan
-     - [ ] All tests pass (cargo test)
-     - [ ] All tests pass with rhai feature (cargo test --features rhai)
-     - [ ] Manual testing completed (if applicable)
-     - [ ] Documentation updated
-
-     🤖 Generated with [Claude Code](https://claude.com/claude-code)
-     ```
-
-2. Create the PR:
-   ```bash
-   gh pr create --title "PR title" --body "$(cat <<'EOF'
-   ## Summary
-   - ...
-
-   ## Changes Made
-   - ...
-
-   ## Test Plan
-   - [x] All tests pass
-
-   🤖 Generated with [Claude Code](https://claude.com/claude-code)
-   EOF
-   )"
-   ```
-
-3. Note the PR number from the output
-
-4. **Update checkpoint changelog (if applicable):**
-   - If you created/updated a checkpoint changelog in step 3.5, update it with the PR number
-   - Edit `checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md`
-   - Add PR number to the "PR Information" section
-   - Commit the update: `git commit -am "Update changelog with PR number"`
-   - Push: `git push`
-
-### 7. Request Review
-
-Request review from GitHub Copilot or other reviewers:
-
-**For Human Reviewers (Using GitHub CLI):**
+Draft a PR with `gh pr create`. The body template below is generic; trim sections that don't apply.
 
 ```bash
-# Request review from specific users
-gh pr edit <pr-number> --add-reviewer "username1,username2"
+gh pr create --title "<concise title, under 70 chars>" --body "$(cat <<'EOF'
+## Summary
+- 1–3 bullets describing the change at a glance.
 
-# Request review from team
-gh pr edit <pr-number> --add-reviewer "org-name/team-name"
+## Changes
+- Per-area bullets (e.g., "parser:", "CLI:", "docs:") describing what moved.
+
+## Test plan
+- [ ] All tests pass (`cargo test` / `uv run pytest` / …)
+- [ ] Formatter / linter clean
+- [ ] Type-check clean (if applicable)
+- [ ] Manual testing steps, if relevant
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
 ```
 
-**For GitHub Copilot Code Review:**
+Record the PR number for later steps.
 
-**IMPORTANT:** There is no working CLI command to request Copilot as a reviewer. The user must manually assign Copilot through the GitHub web interface.
+## 7. Request Review
 
-1. You can optionally add Copilot as an assignee (this is NOT the same as requesting review):
-   ```bash
-   gh pr edit <pr-number> --add-assignee "@copilot"
-   ```
-   This will show Copilot in the "Assignees" section but does NOT trigger a code review.
-
-2. Inform the user that they need to manually request Copilot review:
-   - Open the PR on GitHub.com: `https://github.com/<owner>/<repo>/pull/<pr-number>`
-   - Click the **Reviewers** section in the right sidebar
-   - Select **Copilot** from the dropdown to request an actual code review
-
-**⚠️ CRITICAL WARNING:** When addressing Copilot review comments, **DO NOT** mention "Copilot" or "@copilot" in your PR comments. Mentioning Copilot will trigger it to actively work on the PR (make changes), not just review it. This can lead to unintended modifications. Simply address the feedback without mentioning Copilot by name.
-
-**Verify review request:**
+**Human reviewers** (GitHub CLI works fine):
 
 ```bash
-# Check if human reviewers were added
-gh pr view <pr-number> --json reviewRequests
+gh pr edit <pr-number> --add-reviewer "user1,user2"
+gh pr edit <pr-number> --add-reviewer "org/team"
+```
 
-# View full PR details
+**GitHub Copilot code review** — as of this writing, there's no reliable CLI path. To add Copilot as an actual reviewer, the user must pick it from the Reviewers dropdown on the PR page in the web UI. (`gh pr edit --add-assignee "@copilot"` adds Copilot as an assignee, which is *not* the same as requesting review and will instead trigger Copilot to make changes — avoid unless that's what you want.)
+
+**⚠️ Important:** When responding to Copilot review comments, do **not** @-mention "Copilot" or "@copilot" in your replies — mentions trigger Copilot to edit the PR rather than just review it.
+
+Verify requests landed:
+
+```bash
+gh pr view <pr-number> --json reviewRequests
 gh pr view <pr-number>
 ```
 
-**Note:** GitHub Copilot code review requires Copilot Business or Enterprise subscription and must be enabled for the repository. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
+Then wait for the user to signal that reviews have come in.
 
-**Wait for user to notify when reviews are received.**
+## 8. Address Review Comments
 
-### 8. Address Review Comments
+When reviews arrive:
 
-Once reviews are received:
-
-1. Read review comments:
+1. Read them:
    ```bash
    gh pr view <pr-number>
    gh api repos/:owner/:repo/pulls/<pr-number>/comments
    ```
+2. For each actionable comment, make the change, re-run the quality/test steps from sections 1 and 2, and commit.
+3. `git push`.
+4. Repeat until all comments are addressed.
 
-2. For each comment:
-   - Make the requested changes
-   - Run quality checks again (cargo fix, cargo fmt)
-   - Re-run tests with `/test` skill
-   - Commit fixes with `/commit` skill
+## 9. Final Notification
 
-3. Push updates:
+Once the PR is green and all review feedback is handled:
+
+1. Leave a comment tagging the owner (substitute their handle):
    ```bash
-   git push
+   gh pr comment <pr-number> --body "All review comments have been addressed and all tests are passing. Ready for merge when you are."
    ```
-
-4. Repeat until all review comments are resolved
-
-### 9. Final Notification
-
-Once all reviews are addressed and tests pass:
-
-1. Comment on the PR to inform user to merge:
-   ```bash
-   gh pr comment <pr-number> --body "@cychen2021 All review comments have been addressed and all tests are passing. Please review and merge when ready! 🚀"
-   ```
-
-2. Notify the user in the conversation:
-   - Provide the PR URL
-   - Confirm all checks passed
-   - Confirm PR comment was posted
-   - Ask user to merge the PR
+2. In the conversation, give the user the PR URL, confirm the checks passed, and ask them to merge.
 
 ## Integration with Other Skills
 
-This skill works with the nrv workflow:
-
-- **Triggered after:** `/init-feature-impl` completes implementation
-- **Uses internally:**
-  - `/test` - Full test suite execution
-  - `/debug-tests` - Fix test failures
-  - `/commit` - Create commits following conventions
-  - `/squash` - Optionally squash commits (if requested)
+- **Triggered after:** `/init-feature-impl` or any equivalent feature-branch setup.
+- **Often uses internally:**
+  - `/test` — if the project provides a canonical test sequence
+  - `/debug-tests` — for fixing test failures
+  - `/commit` — for commit-message conventions
+  - `/squash` — optional, only if the user asks
 
 ## Notes
 
-- **Do not proceed** to PR creation if tests are failing
-- **Always update documentation** - even small changes may affect docs
-- **Checkpoint changelog maintenance** is required by CLAUDE.md for checkpoint-based work - see step 3.5
-- **Manual code convention checks** are critical - automated tools don't catch everything
-- The PR body format can be adjusted based on project needs
-- GitHub CLI (`gh`) must be configured and authenticated
-- Review workflow assumes use of GitHub's review features
-- **GitHub Copilot code review** requires repository-level enablement - see: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
-- **GitHub CLI documentation**: https://cli.github.com/manual/gh_pr for full reference on PR commands
+- Detect the toolchain *first*, then pick commands — don't run Cargo commands in a Python-only repo or vice versa.
+- Prefer repo-provided wrapper scripts (`format.py`, `scripts/fmt.sh`, `just`, `make`) over raw tool invocations — they encode the project's authoritative configuration.
+- If the repo keeps a CHANGELOG or release-notes file, update it; if it only relies on commit messages, trust the messages.
+- `gh` must be authenticated (`gh auth status`).
+- GitHub Copilot code review requires repository-level enablement. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
+- `gh` reference: https://cli.github.com/manual/gh_pr
 
 ## Exit Criteria
 
-The skill completes when:
-1. All tests pass
-2. All documentation is updated
-3. Checkpoint changelog is updated (if applicable)
-4. Commits are created and pushed
-5. PR is created and reviews are requested
-6. Review comments (if any) are addressed
-7. User is notified to merge
+Done when:
+1. All tests / lints / type checks pass.
+2. Documentation is updated (or explicitly confirmed N/A).
+3. Commits are created and pushed.
+4. PR is opened and reviewers are requested.
+5. Review comments (if any) are addressed.
+6. User is notified to merge.
