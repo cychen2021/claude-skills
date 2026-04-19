@@ -1,6 +1,6 @@
 ---
 name: finish-feature-impl
-description: Complete a feature implementation with quality checks, testing, documentation updates, commits, and PR creation. Supports common Rust (Cargo) and Python projects (uv/Poetry/pip). Runs the appropriate formatter, linter, and test commands for the detected toolchain, updates relevant documentation, creates commits, pushes to remote, creates a PR via the `gh` CLI, and manages the review workflow. AUTOMATICALLY use this skill when feature implementation work is complete, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
+description: Complete a feature implementation with quality checks, testing, documentation updates, commits, and PR creation. Supports common Rust (Cargo) and Python projects (uv / Poetry / Hatch / pip). Runs the appropriate formatter, linter, and test commands for the detected toolchain, updates relevant documentation, creates commits, pushes to remote, creates a PR via the `gh` CLI, and manages the review workflow. AUTOMATICALLY use this skill when feature implementation work is complete, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
 ---
 
 # Finish Feature Impl
@@ -54,9 +54,10 @@ Run the project's standard formatter and auto-fixer.
 | Project type | Commands |
 |---|---|
 | Rust (Cargo) | `cargo fix --allow-dirty --allow-staged` then `cargo fmt` |
-| Python (uv, repo has `format.py` / `type_check.py` scripts) | `uv run format.py` (and any project-provided fix script) |
+| Python (uv, repo has `format.py` / `type_check.py` scripts) | `uv run python format.py` (and `uv run python <script>.py` for other project-provided Python fix scripts). If the script is already executable (`chmod +x` with a PEP 723 shebang), `uv run format.py` also works. |
 | Python (uv, no wrapper script) | `uv run ruff format .` and `uv run ruff check --fix .` if `ruff` is a dependency; otherwise `uvx ruff format .` and `uvx ruff check --fix .` |
 | Python (Poetry) | `poetry run ruff format .` and `poetry run ruff check --fix .` (or `black` / `isort` if the project uses them) |
+| Python (Hatch) | `hatch run fmt` / `hatch run lint` if scripts are defined in `[tool.hatch.envs.*.scripts]`; otherwise `hatch run ruff format .` and `hatch run ruff check --fix .` |
 | Python (pip) | `ruff format .` / `black .` / `isort .` — whichever is configured in `pyproject.toml` |
 
 If the repository provides wrapper scripts (e.g. `format.py`, `scripts/fmt.sh`, a `justfile`, or a `Makefile` target), prefer those — they encode the project's authoritative configuration.
@@ -83,6 +84,7 @@ Run the project's full test suite and fix any failures before moving on. **Do no
 | Rust (Cargo) | `cargo test` (and `cargo test --all-features` if features are in play). For workspaces, `cargo test --workspace`. |
 | Python (uv) | `uv run pytest` (respecting any `pytest.ini` / `pyproject.toml` config). If the project pins a test script, use it. |
 | Python (Poetry) | `poetry run pytest` |
+| Python (Hatch) | `hatch run test` if defined, otherwise `hatch run pytest` |
 | Python (pip) | `pytest` (inside the activated virtualenv) |
 
 Additional language-level checks to run if configured:
@@ -119,7 +121,7 @@ Be thorough but concise. If nothing surfaced in the diff touches user-visible do
 
 ## 4. Git Commit
 
-Follow the project's commit conventions. Check `.vscode/general-commit.instructions.md`, `CONTRIBUTING.md`, or a commitlint config for project-specific rules, then fall back to:
+Follow the project's commit conventions. Check `.vscode/general-commit.instructions.md` if present, `CONTRIBUTING.md` if present, or a commitlint config if present for project-specific rules, then fall back to:
 
 - Imperative headline, capitalized verb, no trailing period.
 - Headline short enough to read at a glance (typically ≤ 50–72 chars; some projects cap at "under 10 words").

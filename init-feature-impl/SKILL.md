@@ -1,6 +1,6 @@
 ---
 name: init-feature-impl
-description: Initialize a new feature implementation for common Rust (Cargo) or Python (uv/Poetry/pip) projects. Creates a feature branch with a sensible naming convention, optionally designs an implementation plan, and prepares for implementation. AUTOMATICALLY use this skill when the user explicitly requests a new feature with phrases like "I want a new feature", "Let's add [feature]", "Start implementing [feature]", "Begin new feature [description]", or any clear request to start feature development work.
+description: Initialize a new feature implementation for common Rust (Cargo) or Python (uv / Poetry / Hatch / pip) projects. Creates a feature branch with a sensible naming convention, optionally designs an implementation plan, and prepares for implementation. AUTOMATICALLY use this skill when the user explicitly requests a new feature with phrases like "I want a new feature", "Let's add [feature]", "Start implementing [feature]", "Begin new feature [description]", or any clear request to start feature development work.
 ---
 
 # Init Feature Impl
@@ -32,7 +32,7 @@ If the feature request is ambiguous, use the `AskUserQuestion` tool to clarify:
 
 ## 2. Create Feature Branch
 
-Use a descriptive, kebab-case branch name. Prefer the project's existing convention (check recent branches with `git branch -a | head -20`) before applying the defaults below.
+Use a descriptive, kebab-case branch name. Prefer the project's existing convention (sample recent branches with `git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads refs/remotes | head -20`) before applying the defaults below.
 
 ```bash
 git checkout -b feature/<descriptive-name>
@@ -80,15 +80,17 @@ git checkout -b <username>/feature/<descriptive-name>
 
 ## 4. Wait for Go-Ahead
 
-After presenting the plan (or the skip-plan sketch), **wait for explicit user approval** before writing code.
+Unless the user passed `--skip-plan` (see **Arguments** below), **wait for explicit user approval** after presenting the plan before writing code.
 
 Go-ahead signals include: "Looks good, go ahead", "Start implementing", "Proceed", "Let's do it".
+
+When `--skip-plan` is used, the flag itself counts as the go-ahead — proceed directly to step 5 without a separate approval gate. Still sketch the intended approach in a short message first, so the user can course-correct if needed.
 
 ## 5. Begin Implementation
 
 Once approved:
 
-1. Create a task list (`TaskCreate` / `TodoWrite`) tracking the implementation steps.
+1. Create a task list with `TodoWrite` tracking the implementation steps.
 2. Implement following the approved plan. Mark tasks `in_progress` → `completed` as you go.
 3. Follow language-appropriate conventions:
    - **Rust**: derive standard traits (`Debug`, `PartialEq`) on data types where sensible; avoid `unwrap`/`expect` in library code; keep `use` nesting shallow and consistent with the existing code.
@@ -98,17 +100,17 @@ Once approved:
 
 ## Arguments
 
-**`--skip-plan`**: Skip the planning phase for simple features where the implementation is straightforward.
+**`--skip-plan`**: Skip the planning phase *and* the separate approval gate for simple features where the implementation is straightforward. The user supplying `--skip-plan` is itself the approval signal.
 
 Example:
 - User: "I want a new feature to add support for X --skip-plan"
-- Go directly from step 2 (branch creation) to step 5 (implementation) — no plan, no approval gate.
+- Sketch the approach in a brief message, then go directly from step 2 (branch creation) to step 5 (implementation) — no plan document, no separate approval gate.
 
 ## Integration with Other Skills
 
 - **After implementation:** `/finish-feature-impl` to run quality checks, update docs, commit, push, and open a PR.
 - **During implementation:** `/test` / `/debug-tests` if the project provides them.
-- **For commits:** `/commit` if the project provides it, otherwise follow conventions from `.vscode/general-commit.instructions.md` or `CONTRIBUTING.md`.
+- **For commits:** `/commit` if the project provides it; otherwise follow conventions from `.vscode/general-commit.instructions.md` if present, or fall back to `CONTRIBUTING.md`, commitlint configuration, or recent `git log` examples.
 
 ## Notes
 
