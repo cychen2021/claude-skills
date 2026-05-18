@@ -14,8 +14,9 @@ This skill creates a timestamped checkpoint folder in `checkpoints/` containing:
 2. Diff comparison with previous checkpoint
 3. Tailored documentation review guidelines
 4. Tailored code review guidelines
+5. Tailored test-correctness audit guidelines (vibe-code-specific)
 
-Checkpoints help maintain code quality by providing structured review touchpoints after "vibe coding" sessions.
+Checkpoints help maintain code quality by providing structured review touchpoints after "vibe coding" sessions. The test-audit guideline is separate from the code review because passing tests in vibe-coded projects do **not** imply correct tests — circular mocks, mocked-out SUTs, and assertion-free smoke tests are common failure modes that the standard code review tends to skim over.
 
 ## Workflow
 
@@ -438,9 +439,163 @@ These guidelines help you systematically review code for quality, consistency, a
 - Balance idealism with pragmatism
 ```
 
+### Step 9: Generate `test-audit-guidelines.md`
+
+> **Path naming convention:** Always use full paths (e.g.
+> `src/buckai_dojo/aws/sweep.py`, `tests/test_aws_sweep.py`) when referencing
+> files. Avoid ambiguous short names that could refer to multiple files.
+
+This file is specifically focused on the **correctness of the tests themselves**,
+not the code under test. Vibe-coded projects routinely accumulate tests that
+pass but assert nothing meaningful — the standard code review tends to skim
+past green-bar tests, so this audit makes test correctness a first-class
+review pass.
+
+The goal is **not** to expand coverage. The goal is to confirm that the
+existing tests would actually fail if the system under test (SUT) regressed.
+
+```markdown
+# Test Audit Guidelines - Checkpoint <timestamp>
+
+## Purpose
+
+Audit the **correctness of tests themselves**, not the code they cover. In
+vibe-coded projects, a passing test suite is weaker evidence than it looks:
+LLM-authored tests frequently mock out the very function they claim to test,
+duplicate the SUT's logic inside the mock, or assert only that no exception
+was raised. This audit is the deliberate counter-pressure against that drift.
+
+Coverage expansion is **out of scope** here — that belongs in a separate task.
+Here we ask: of the tests that already exist, which ones would actually catch
+a regression?
+
+## Audit Priorities
+
+[Based on status-quo.md and diff, identify the 3-5 highest-risk test files —
+typically the ones covering the highest-churn or highest-stakes modules.]
+
+### Priority 1: [test file for the highest-stakes module]
+**Why:** [Reason — e.g. covers the AWS sweep path, real-money blast radius]
+**Focus on:** [specific test file paths]
+**Audit for:** [the specific anti-patterns most likely here]
+
+### Priority 2: ...
+
+## Vibe-Code Test Anti-Patterns
+
+For each test file under audit, check for:
+
+### Mocked-out SUT
+- [ ] The function under test is **not** itself mocked or patched.
+- [ ] `patch.object(module, "func_under_test", ...)` does NOT replace the SUT.
+- [ ] When the SUT is a method on a class, the class isn't replaced wholesale
+      with a `MagicMock`.
+
+### Circular / tautological mocks
+- [ ] The test does not configure a mock to return value `X` and then assert
+      the SUT returned `X` — that asserts the mock, not the SUT.
+- [ ] Mock return values are realistic shapes the *real* dependency would
+      return, not values hand-picked to make the assertion pass.
+- [ ] No mocks duplicate the SUT's logic inside `side_effect=` so the test
+      passes regardless of what the SUT does.
+
+### Assertion-free smoke tests
+- [ ] Every test has at least one meaningful `assert` (not just
+      `assert result is not None` on a function that can never return None).
+- [ ] "Did not raise" is justified — if the only assertion is
+      implicit-no-exception, the test name says so AND raising is a real risk.
+- [ ] No tests end with `mock.assert_called()` as the *only* assertion when
+      the call is a precondition for any code reaching the assertion line.
+
+### Over-mocking the boundary
+- [ ] External I/O (`subprocess.run`, `urllib.request.urlopen`, sockets, boto3)
+      is mocked at the **boundary**, not deeper. Mocking the SUT's internal
+      helpers hides bugs in those helpers.
+- [ ] Where a fake/stub would be clearer than a `MagicMock`, prefer the fake.
+
+### Frozen-in-amber expectations
+- [ ] Hardcoded expected values (ARNs, image URIs, ports, JSON blobs) match
+      what the SUT actually produces today, not a stale snapshot.
+- [ ] Snapshot/golden-file tests have been re-checked, not blindly regenerated.
+
+### Setup-driven false positives
+- [ ] `setUp` / fixtures don't quietly construct the answer the test then
+      "discovers" — i.e. the fixture isn't doing the SUT's job.
+- [ ] Parametrized tests don't all pass via the same trivial branch; spot-check
+      one boundary case per parametrize block.
+
+### Error-path coverage that doesn't actually exercise the error
+- [ ] Tests for failure modes raise the failure where the SUT will *see* it,
+      not at a point the SUT short-circuits before reaching.
+- [ ] `pytest.raises(SomeError)` is paired with a `match=` or message check
+      when multiple call sites can raise the same error type.
+
+### Async / threading / subprocess hazards
+- [ ] Tests that spawn threads, asyncio tasks, or subprocesses join/await
+      them; no fire-and-forget that could mask a silent failure.
+- [ ] Time-sensitive tests use injected clocks or fixtures, not `sleep`.
+
+### Test isolation
+- [ ] No test depends on another test having run first (suite ordering).
+- [ ] Tests don't leave behind temp files, env vars, or global state.
+- [ ] Module-level singletons / caches are reset per-test where relevant.
+
+## Module-Specific Audit
+
+[For each test file under audit, list the specific concrete anti-patterns
+most likely present, given what the corresponding SUT does.]
+
+### tests/test_<module>.py
+- [ ] [specific check tied to that SUT's behavior]
+- [ ] [specific check tied to that SUT's behavior]
+
+## Cross-Cutting Checks
+
+- [ ] Skipped tests (`pytest.skip`, `xfail`) are still justified — none have
+      become silently dead with the recent refactors.
+- [ ] No `if False:` / commented-out test bodies.
+- [ ] Test names describe the *behavior under test*, not the implementation
+      (`test_returns_none_when_input_empty`, not `test_calls_strip_then_split`).
+- [ ] Coverage gaps in the per-file `term-missing` report flag genuinely
+      untested *behavior*, not just untested *lines* (some untested lines are
+      defensible defensive code).
+
+## Audit Process
+
+1. **Pick the highest-stakes test file from Priority 1.** Open the test file
+   and the SUT side-by-side.
+2. **For each test in that file, mutation-check it mentally:** if I broke the
+   SUT's logic in the obvious way, would this test fail? If "no" or "unsure",
+   flag it.
+3. **Sample-mutate one or two tests for real** if the file is high-stakes —
+   change a constant in the SUT, run that test, confirm red.
+4. **Walk Priority 2-N** the same way.
+5. **Run the cross-cutting checks** across the full `tests/` tree.
+6. **Document findings** as a fix list — bad tests should be rewritten or
+   deleted, not patched. A deleted misleading test is better than a kept one.
+
+## Deliverable
+
+A list of tests in one of three buckets:
+- **Delete:** the test asserts nothing useful and rewriting it is not worth
+  it.
+- **Rewrite:** the test covers behavior worth covering but does it wrong
+  (mocked-out SUT, tautology, etc.).
+- **Keep:** the test would catch a regression. No action.
+
+## Notes
+
+- A failing audit is *good news* — it means you found tests that were lying
+  to you. Treat them as bugs.
+- Don't expand coverage during the audit. Note gaps; address them in a later
+  pass.
+- When deleting a test, leave a note in the commit message naming the
+  anti-pattern, so future authors learn the failure mode.
+```
+
 ## Completion
 
-After generating all four files:
+After generating all five files:
 
 1. Confirm checkpoint created successfully:
    ```bash
@@ -452,6 +607,7 @@ After generating all four files:
    - Review `diff-vs-<previous_cp>.md` to see what changed
    - Use `doc-review-guidelines.md` to review documentation
    - Use `code-review-guidelines.md` to review code
+   - Use `test-audit-guidelines.md` to audit test correctness
 
 3. Remind user about git workflow:
    - Checkpoints are meant to be committed to track review history in the repository
