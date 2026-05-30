@@ -133,6 +133,8 @@ If the repo exposes a `/commit` skill, prefer that — it will encode the conven
 
 Default: **create a new commit**; do not squash unless the user asks.
 
+**Stage before committing, then verify the commit captured everything.** Run `git add -A` (or stage the intended paths) *before* `git commit`, and after committing run `git show --stat HEAD` to confirm the content edits landed — a commit created while edits are unstaged can silently record only file renames/moves ("0 insertions, 0 deletions"). If work was left uncommitted from a prior session, it may already be lost; check `git log` / `git reflog` before assuming it persisted.
+
 ## 5. Push to Remote
 
 ```bash
@@ -227,6 +229,7 @@ Once the PR is green and all review feedback is handled:
 - Detect the toolchain *first*, then pick commands — don't run Cargo commands in a Python-only repo or vice versa.
 - Prefer repo-provided wrapper scripts (`format.py`, `scripts/fmt.sh`, `just`, `make`) over raw tool invocations — they encode the project's authoritative configuration.
 - If the repo keeps a CHANGELOG or release-notes file, update it; if it only relies on commit messages, trust the messages.
+- Commit verified work promptly and never leave it uncommitted across a session boundary — uncommitted changes do not survive a branch switch, `git clean`, or a new session, and have been silently lost. After creating a commit, confirm it actually captured the changes (`git show --stat`): a commit made while edits were still unstaged can record only file moves with "0 insertions, 0 deletions".
 - `gh` must be authenticated (`gh auth status`).
 - GitHub Copilot code review requires repository-level enablement. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
 - `gh` reference: https://cli.github.com/manual/gh_pr

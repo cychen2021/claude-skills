@@ -97,6 +97,7 @@ Once approved:
    - **Python**: type hints on public functions; docstrings on public classes/functions; prefer the project's existing import style (absolute vs. relative); avoid bare `except`.
 4. Add tests alongside new behavior (`src/**/mod tests` or `tests/` for Rust; `tests/` or `test_*.py` for Python).
 5. Always read the project's `CLAUDE.md` / `CONTRIBUTING.md` for conventions that override these defaults.
+6. **Commit verified work promptly — never leave it uncommitted across a session boundary.** Once a coherent unit of work passes the formatter, type-check, and tests, commit it, even if the push / PR comes later via `/finish-feature-impl`. Uncommitted changes are the only git state that does not survive a branch switch, `git clean`, or a new session — work left uncommitted has been silently lost and had to be redone from scratch. If you cannot commit yet (e.g. still mid-feature), `git stash` so it stays recoverable.
 
 ## Arguments
 
@@ -117,3 +118,4 @@ Example:
 - This skill focuses on initialization and planning — implementation only begins after user approval.
 - Always consult `CLAUDE.md` for the project's current workflow and conventions before committing to a plan.
 - Feature branches keep the default branch stable and make review easier.
+- Never end a session with completed work uncommitted — commit it (or `git stash`) first; uncommitted changes do not survive a branch switch, `git clean`, or a new session. At session start, check `git log` / `git reflog`: a branch whose only reflog entry is "Created from HEAD" never had its work committed.
