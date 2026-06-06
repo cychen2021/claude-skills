@@ -1,111 +1,120 @@
 # Refactoring Workflow
 
-This document describes the detailed refactoring workflow for nrv maintenance.
+This document describes the detailed refactoring workflow. It is **language-agnostic**: the automated steps are the same regardless of language, only the underlying tool differs. The script (`scripts/refactor_check.py`) detects the toolchain; the table below maps each step to the tool it runs.
+
+## Toolchain Reference
+
+| Step | Rust | Python |
+| --- | --- | --- |
+| Format (check) | `cargo fmt -- --check` | `ruff format --check .` |
+| Format (apply) | `cargo fmt` | `ruff format .` (or project `format.py`) |
+| Autofix | `cargo fix --allow-dirty --allow-staged` | `ruff check --fix .` |
+| Lint | `cargo clippy --all-targets --all-features -- -D warnings` | `ruff check .` |
+| Type-check | (n/a — compiler) | `pyright` / `mypy` (or project `type_check.py`) |
+| Docs | `cargo doc --no-deps --document-private-items` | docstrings; `pytest --doctest-modules` if used |
+| Tests | `cargo test` | `pytest` |
+
+When the project uses `uv` (a `uv.lock` is present), Python commands run under `uv run`. Project helper scripts (`format.py`, `type_check.py`) are preferred when present. Always defer to commands documented in the project's `CLAUDE.md`.
 
 ## Execution Flow
 
-1. **Format code** (`cargo fmt`)
-2. **Apply compiler fixes** (`cargo fix --allow-dirty`)
-3. **Address clippy warnings** (`cargo clippy`)
-4. **Check documentation** (`cargo doc`)
-5. **Run tests** (`cargo test`)
+1. **Format code**
+2. **Apply autofixes** (compiler/linter safe fixes)
+3. **Address lint warnings** (clippy / ruff)
+4. **Type-check** (Python) / **check docs** (Rust)
+5. **Run tests**
 6. **Handle structural issues** (manual review)
 
 ## Handling Different Issue Types
 
 ### Format Issues (Auto-fix)
 
-**Detection**: `cargo fmt --check` shows diffs
+**Detection**: the format-check command shows diffs.
 
-**Action**: Run `cargo fmt` automatically
+**Action**: run the formatter automatically (applied by the script).
 
-**Example**:
-```
-Diff in src/parser.rs at line 42
-```
+### Autofixable Warnings (Auto-fix)
 
-**Resolution**: Applied automatically by script
-
-### Compiler Warnings (Auto-fix)
-
-**Detection**: `cargo fix` suggests changes
-
-**Action**: Apply `cargo fix --allow-dirty --allow-staged`
+**Detection**: `cargo fix` / `ruff check --fix` suggests changes.
 
 **Common fixes**:
 - Unused imports
-- Unused variables (prefix with `_`)
+- Unused variables
 - Deprecated syntax
+- Simplifiable expressions (ruff)
 
-**Resolution**: Applied automatically by script
+**Resolution**: applied automatically by the script.
 
-### Clippy Warnings (Review Required)
+### Lint Warnings (Review Required)
 
-**Detection**: `cargo clippy` reports warnings
+**Detection**: `cargo clippy` / `ruff check` reports remaining warnings.
 
-**Action**: Review each warning and decide:
+**Action**: review each warning and decide:
 
-1. **Apply safe fixes** - Simplifications, style improvements
-2. **Skip false positives** - Add `#[allow(clippy::...)]` with justification
-3. **Document intentional choices** - Explain why warning doesn't apply
+1. **Apply safe fixes** — simplifications, style improvements
+2. **Skip false positives** — suppress narrowly with justification
+3. **Document intentional choices** — explain why the warning doesn't apply
 
-**Common clippy warnings**:
-- `needless_return` - Remove explicit return
-- `redundant_pattern_matching` - Use `if let` instead of `match`
-- `manual_map` - Replace manual `match` with `.map()`
-- `single_match` - Replace `match` with `if let`
+**Suppression syntax**:
+- Rust: `#[allow(clippy::warning_name)]` with a comment
+- Python (ruff): `# noqa: <RULE>` with a comment
+- Python (type errors): `# type: ignore[<code>]` (see CLAUDE.md)
+
+**Common Rust clippy warnings**: `needless_return`, `redundant_pattern_matching`, `manual_map`, `single_match`.
+
+**Common Python ruff warnings**: unused import (`F401`), unused variable (`F841`), mutable default argument (`B006`), unnecessary comprehension (`C4xx`), un-pythonic comparison (`E711`/`E712`).
 
 **Example decision tree**:
 ```
-Clippy warning found
+Lint warning found
 ├─ Safe refactor (style/simplification)? → Apply immediately
-├─ False positive? → Add #[allow(...)] with comment
+├─ False positive? → Suppress narrowly with a justifying comment
 └─ Complex change? → Report for manual review
 ```
 
-### Documentation Issues (Review Required)
+### Documentation / Type Issues (Review Required)
 
-**Detection**: `cargo doc` shows warnings or missing docs
+**Rust** — `cargo doc` shows warnings or missing docs:
+1. Add missing `///` comments on public items
+2. Verify examples compile (`cargo test --doc`)
 
-**Action**:
-1. Check for missing `///` comments on public items
-2. Verify examples compile (use `cargo test --doc`)
-3. Update affected docs/ markdown files
+**Python** — `pyright`/`mypy` reports type issues:
+1. Fix genuine type errors
+2. Add precise annotations where inference fails
+3. Suppress unfixable third-party issues with `# type: ignore[<code>]` and a comment
 
-**Priority**:
-- Public API functions (required)
-- Public structs/enums (required)
-- Private items (optional, add if complex)
+**Priority** (both): public API > public types/classes > complex private items.
 
 ### Structural Refactoring (Manual)
 
-These require human judgment and are NOT automated:
+These require human judgment and are NOT automated. They apply identically across languages:
 
 **Code duplication**:
 - Search for similar patterns with Grep
-- Consider extracting shared logic
-- Balance DRY vs readability (3+ occurrences → consider extraction)
+- Consider extracting shared logic (3+ occurrences → consider extraction)
+- Balance DRY vs readability
 
 **Complex functions**:
-- Functions over 50 lines → consider breaking down
-- Deep nesting (4+ levels) → flatten with early returns
-- Too many parameters (6+) → consider a struct
+- Functions over ~50 lines → consider breaking down
+- Deep nesting (4+ levels) → flatten with early returns / guard clauses
+- Too many parameters (6+) → consider a struct / dataclass / parameter object
 
 **Module organization**:
-- Files over 500 lines → consider splitting
-- Related functionality → group in submodules
+- Files over ~500 lines → consider splitting
+- Related functionality → group in submodules / packages
 
 ## After Refactoring
 
 Always run the full verification sequence:
 ```bash
-# Option 1: Use the refactoring script (recommended)
+# Option 1: use the refactoring script (recommended — auto-detects toolchain)
 python3 .claude/skills/refactor-codebase/scripts/refactor_check.py
 
-# Option 2: Manual verification
-cargo fmt
-cargo fix --allow-dirty
-cargo test
+# Option 2: manual verification
+#   Rust:
+cargo fmt && cargo fix --allow-dirty && cargo test
+#   Python (this repo):
+uv run format.py && uv run type_check.py && uv run pytest
 ```
 
 If creating a commit, follow conventions in CLAUDE.md.
@@ -114,39 +123,43 @@ If creating a commit, follow conventions in CLAUDE.md.
 
 ### Extracting repetitive code
 
-**Before**:
+**Rust — before**:
 ```rust
-fn validate_a() -> Result<(), String> {
-    // validation logic
-}
-fn validate_b() -> Result<(), String> {
-    // same validation logic
-}
+fn validate_a() -> Result<(), String> { /* validation logic */ }
+fn validate_b() -> Result<(), String> { /* same validation logic */ }
 ```
 
-**After**:
+**Rust — after**:
 ```rust
-fn validate(input: Input) -> Result<(), String> {
-    // shared validation logic
-}
+fn validate(input: Input) -> Result<(), String> { /* shared validation logic */ }
 ```
 
-### Simplifying nested matches
+**Python — before**:
+```python
+def validate_a(x): ...  # validation logic
+def validate_b(x): ...  # same validation logic
+```
 
-**Before**:
+**Python — after**:
+```python
+def validate(x):  # shared validation logic
+    ...
+```
+
+### Simplifying nested conditionals
+
+**Rust — before**:
 ```rust
 match result {
-    Ok(val) => {
-        match val {
-            Some(x) => process(x),
-            None => default(),
-        }
-    }
+    Ok(val) => match val {
+        Some(x) => process(x),
+        None => default(),
+    },
     Err(e) => handle_error(e),
 }
 ```
 
-**After**:
+**Rust — after**:
 ```rust
 match result {
     Ok(Some(x)) => process(x),
@@ -155,23 +168,39 @@ match result {
 }
 ```
 
-### Using early returns
+### Using early returns / guard clauses
 
-**Before**:
+**Rust — before**:
 ```rust
 fn process(x: Option<i32>) -> i32 {
-    if let Some(val) = x {
-        val * 2
-    } else {
-        0
-    }
+    if let Some(val) = x { val * 2 } else { 0 }
 }
 ```
 
-**After**:
+**Rust — after**:
 ```rust
 fn process(x: Option<i32>) -> i32 {
     let Some(val) = x else { return 0 };
     val * 2
 }
+```
+
+**Python — before**:
+```python
+def process(items):
+    if items:
+        result = []
+        for item in items:
+            if item.is_valid():
+                result.append(transform(item))
+        return result
+    return []
+```
+
+**Python — after**:
+```python
+def process(items):
+    if not items:
+        return []
+    return [transform(item) for item in items if item.is_valid()]
 ```
