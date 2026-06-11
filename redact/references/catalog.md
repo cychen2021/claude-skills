@@ -34,6 +34,8 @@ review may require hiding.
 |---|---|---|
 | Package metadata authors | `authors = [{ name = "...", email = "..." }]` in `pyproject.toml`; `author`/`contributors` in `package.json` | Sanitize to a neutral placeholder (e.g. `Anonymous <anon@example.com>`) |
 | Email addresses | personal addresses in docs, configs, comments | Sanitize / remove |
+| Phone numbers | E.164 (`+1 555-123-4567`) or grouped numbers in author blocks, READMEs, CITATION files | Remove / sanitize |
+| Personal home page / profile URLs | personal site (`https://<you>.dev`, `*.me`, `*.io`), `linkedin.com/in/<you>`, `twitter.com`/`x.com/<you>`, `github.com/<you>`, `orcid.org/...`, `scholar.google.*`, `researchgate.net/profile/...`, `medium.com/@<you>` | Sanitize / remove; keep genuine *project* links |
 | Home-dir paths | `/home/<user>/...`, `/Users/<user>/...`, `C:\Users\<user>\...` | Sanitize to a relative path or generic placeholder |
 | Embedded secrets | API keys, tokens (`ghp_…`, `sk-…`, `AKIA…`), passwords | **Remove immediately**; rotate the credential |
 | Remote URLs with account | `github.com/<personal-account>/...` in `.gitmodules`, README badges | Sanitize to a neutral org or note in report |
@@ -98,6 +100,15 @@ The scanner is deliberately broad. Apply these rules before acting:
   emails are fine; your own address is not.
 - **Home paths in generated docs** (e.g. checkpoint files, logs) leak a username
   but may be in throwaway artifacts you will delete wholesale anyway.
+- **`phone` matches a lot of non-phones.** Version ranges, ISBNs, dimensions,
+  coordinates, and ID numbers all look phone-shaped. Confirm the digits are
+  actually a contact number (usually in an author block, README, or CITATION
+  file) before acting.
+- **`personal-url` flags project links too.** A repo's own homepage, a
+  dependency's docs, or a third-party tool's GitHub page are legitimate — keep
+  them. Redact only URLs that point at *you* (your profile, personal site,
+  social/academic account). When ambiguous (`github.com/<account>`), check
+  whether the account is yours.
 
 ## Handling decisions: delete / sanitize / defer
 

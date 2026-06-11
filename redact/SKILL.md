@@ -1,6 +1,6 @@
 ---
 name: redact
-description: Redact personal information (author names, emails, home-dir paths, secrets), caller-supplied identifiers (your name, username, self-authored package/namespace names like phdkit), self-authored git submodules, and AI-assistant artifacts (AGENTS.md, CLAUDE.md, .cursorrules, agent config dirs, AI commit trailers, AI editor config) from a repository to prepare an anonymized paper-review / artifact submission. Anything that cannot be safely deleted yet — because it is still relied upon, needs a git-history rewrite, requires a package rename, or has ambiguous ownership — is logged to x_not_redacted.md for the human to handle. Use when the user asks to anonymize, redact, scrub, or de-identify a repo for double-blind review or artifact release.
+description: Redact personal information (author names, emails, phone numbers, personal home page / social / academic profile URLs, home-dir paths, secrets), caller-supplied identifiers (your name, username, self-authored package/namespace names like phdkit), self-authored git submodules, and AI-assistant artifacts (AGENTS.md, CLAUDE.md, .cursorrules, agent config dirs, AI commit trailers, AI editor config) from a repository to prepare an anonymized paper-review / artifact submission. Anything that cannot be safely deleted yet — because it is still relied upon, needs a git-history rewrite, requires a package rename, or has ambiguous ownership — is logged to x_not_redacted.md for the human to handle. Use when the user asks to anonymize, redact, scrub, or de-identify a repo for double-blind review or artifact release.
 ---
 
 # Redact
@@ -8,8 +8,9 @@ description: Redact personal information (author names, emails, home-dir paths, 
 ## Overview
 
 Prepare a repository for anonymous review by removing two classes of identifying
-content: **personal information** (author fields, emails, home-dir paths,
-embedded secrets) and **AI-assistant artifacts** (agent rule files like
+content: **personal information** (author fields, emails, phone numbers, personal
+home page / social / academic profile URLs, home-dir paths, embedded secrets) and
+**AI-assistant artifacts** (agent rule files like
 `AGENTS.md`/`CLAUDE.md`, AI config dirs, AI commit trailers, AI editor config).
 Whatever cannot be safely removed now is recorded in `x_not_redacted.md` so the
 human can finish the job.

@@ -6,8 +6,9 @@ Reports several classes of findings, never modifies anything:
   AI         -- AI assistant artifacts (agent rule files, AI config dirs,
                 AI-authored commit trailers, model/provider mentions).
   PERSONAL   -- personal information (author fields, home-dir paths with a
-                username, email addresses, embedded secrets/tokens, personal
-                account names in remote URLs).
+                username, email addresses, phone numbers, personal home page /
+                social / academic profile URLs, embedded secrets/tokens,
+                personal account names in remote URLs).
   IDENTIFIER -- caller-supplied personal identifiers (your name, username, or
                 self-authored package/namespace names such as `phdkit`) found
                 anywhere in the tree.
@@ -137,6 +138,42 @@ def _content_patterns(identifiers: list[str] | None = None) -> list[Pattern]:
             "PERSONAL",
             re.compile(r"(?:/home/|/Users/|C:\\\\Users\\\\)[A-Za-z0-9._-]+"),
             "absolute home path leaking a username",
+        ),
+        Pattern(
+            "phone",
+            "PERSONAL",
+            # E.164 (+CC...) or grouped NANP-style numbers with separators;
+            # require a separator or leading + so bare digit runs (years,
+            # ids, ports) don't match.
+            re.compile(
+                r"(?<![\w.])(?:\+\d{1,3}[\s.-]?)?"
+                r"(?:\(\d{2,4}\)[\s.-]?|\d{2,4}[\s.-])\d{2,4}[\s.-]\d{2,4}"
+                r"(?:[\s.-]\d{2,4})?(?![\w.])"
+            ),
+            "phone number (review: may be a version range, id, or coordinate)",
+        ),
+        Pattern(
+            "personal-url",
+            "PERSONAL",
+            # Personal home pages and social / academic profile links that
+            # tie the repo to an individual. Generic project/dependency URLs
+            # are NOT matched here (see ai-model-mention / submodule checks).
+            re.compile(
+                r"(?i)\b(?:"
+                r"(?:https?://)?(?:www\.)?(?:"
+                r"linkedin\.com/in/|twitter\.com/|x\.com/|"
+                r"github\.com/|gitlab\.com/|bitbucket\.org/|"
+                r"facebook\.com/|instagram\.com/|t\.me/|"
+                r"mastodon\.[a-z]+/@|bsky\.app/profile/|"
+                r"orcid\.org/|scholar\.google\.[a-z.]+/|"
+                r"researchgate\.net/profile/|medium\.com/@|"
+                r"dev\.to/|youtube\.com/@|youtube\.com/c/"
+                r")[A-Za-z0-9._/-]+"
+                r"|(?:https?://)?[A-Za-z0-9-]+\.(?:me|dev|io|page|blog|name|xyz)/?\b"
+                r")"
+            ),
+            "personal home page / social or academic profile URL "
+            "(review: project links may be legitimate)",
         ),
         Pattern(
             "secret",
