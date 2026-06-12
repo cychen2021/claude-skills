@@ -25,7 +25,7 @@ review may require hiding.
 | Agent config/state dirs | `.claude/`, `.cursor/`, `.aider*`, `.continue/`, `.codeium/`, `.github/copilot/` | Usually **defer** — needed for ongoing assistance |
 | Symlinks to rule files | `AGENTS.md -> CLAUDE.md` | Delete the symlink; deciding on the target separately |
 | AI commit trailers | `Co-Authored-By: Claude`, `🤖 Generated with Claude Code` | History rewrite — **defer**, record in report |
-| Editor AI integration | `.vscode/settings.json` keys like `github.copilot.*`, recommended-extensions referencing `anthropic.claude-code` | Sanitize (remove those keys) or defer |
+| Editor AI integration | `.vscode/settings.json` keys like `github.copilot.*`, recommended-extensions referencing `anthropic.claude-code` | Sanitize (remove those keys) or defer — but **keep** `github.copilot.*.instructions` keys and the convention files they point at (see below) |
 | AI tooling in build | `npm install -g @anthropic-ai/claude-code` lines in a `Dockerfile`/devcontainer | Sanitize if the image is published with the paper artifact |
 
 ## Personal information
@@ -134,3 +134,12 @@ For each confirmed finding choose one:
   ships with the artifact.
 - License files naming an institution (that is intended attribution; redact only
   if the venue requires anonymizing it).
+- **`github.copilot.*.instructions` settings and the convention files they
+  reference.** A key such as
+  `github.copilot.chat.commitMessageGeneration.instructions` in
+  `.vscode/settings.json` only points the editor at a project convention file
+  (e.g. `.vscode/general-commit.instructions.md`, a commit-message style guide).
+  The setting and the file it names describe the project's *conventions*, not the
+  author's use of an assistant, and the file is not an agent rule file in the
+  `copilot-instructions.md` sense — keep both. `scan.py` already excludes the
+  `*.instructions` Copilot keys from the `ai-model-mention` flag for this reason.

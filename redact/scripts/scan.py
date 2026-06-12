@@ -120,8 +120,11 @@ def _content_patterns(identifiers: list[str] | None = None) -> list[Pattern]:
             "AI",
             re.compile(
                 r"(?i)\b(anthropic|claude-(?:opus|sonnet|haiku|fable)|@anthropic-ai|"
-                r"openai|gpt-4|gpt-3\.5|chatgpt|copilot|gemini-(?:pro|flash)|"
-                r"us\.anthropic\.)\b"
+                # `github.copilot.*.instructions` keys only point the editor at a
+                # project convention file (e.g. a commit-message style guide); they
+                # do not leak AI-assistant identity, so exclude them from the flag.
+                r"openai|gpt-4|gpt-3\.5|chatgpt|copilot(?!\.[\w.]*\.instructions\b)|"
+                r"gemini-(?:pro|flash)|us\.anthropic\.)\b"
             ),
             "AI provider / model reference (review: may be legitimate dependency)",
         ),
