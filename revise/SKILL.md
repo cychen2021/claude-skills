@@ -17,7 +17,12 @@ This skill is used after the user has completed manual review of checkpoint guid
 4. Applies modifications to docs and code **one item at a time**, checking off each TODO item as it's completed
 5. Runs full verification (formatting, tests, build)
 6. Finalizes revision summary with verification results and overall summary
-7. Commits all changes (code/docs + revision.md in one commit, changelog in another)
+7. Commits all changes (code/docs + revision.md in one commit)
+
+Note: the empty `changelog-after-<timestamp>.md` file is created by the
+`make-checkpoint` skill at checkpoint-creation time, not by `revise` — this
+skill only ever reads/updates an already-existing changelog if one is
+relevant to the revision.
 
 ## Workflow
 
@@ -243,67 +248,7 @@ EOF
 )"
 ```
 
-### Step 8: Create Empty Changelog File
-
-Create an empty changelog file for future development work after this revision:
-
-```bash
-# Extract checkpoint date from latest_checkpoint
-cp_date=$(basename "$latest_checkpoint" | sed 's/cp-//')
-
-# Create empty changelog file
-cat > "$latest_checkpoint/changelog-after-$cp_date.md" << 'EOF'
-# Changelog After Checkpoint cp-YYMMDD
-
-**Note:** Replace YYMMDD with the actual checkpoint date.
-
-This file tracks all changes made after the checkpoint revision. Document changes as they happen:
-
-## Features
-
--
-
-## Bug Fixes
-
--
-
-## Refactorings
-
--
-
-## Documentation Updates
-
--
-
-## Dependency Changes
-
--
-
-## Breaking Changes
-
--
-EOF
-```
-
-**Commit the empty changelog:**
-
-```bash
-# Stage the changelog file
-git add "$latest_checkpoint/changelog-after-$cp_date.md"
-
-# Create commit
-git commit -m "$(cat <<'EOF'
-Create empty changelog for post-revision development
-
-This changelog will track all changes made after checkpoint cp-YYMMDD
-revision until the next checkpoint is created.
-
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
-EOF
-)"
-```
-
-### Step 9: Report Completion
+### Step 8: Report Completion
 
 Provide a summary to the user:
 
@@ -323,15 +268,14 @@ Verification:
 Commits created:
 - [commit hash] Apply checkpoint cp-YYMMDD review feedback
   (includes code/doc changes + revision.md with complete TODO checklist)
-- [commit hash] Create empty changelog for post-revision development
 
 Files created/updated:
 - checkpoints/cp-YYMMDD/revision.md - Complete revision summary with TODO checklist
-- checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md - Empty changelog for future changes
 
 📝 Next Steps:
 As you continue development after this revision, document all changes in:
   checkpoints/cp-YYMMDD/changelog-after-YYMMDD.md
+(created when checkpoint cp-YYMMDD itself was made, by the `make-checkpoint` skill)
 
 This changelog should be updated as you make changes:
 - New features implemented
@@ -352,8 +296,7 @@ This changelog will be referenced when creating the next checkpoint.
 - **Make all changes requested** - don't skip items unless explicitly told by the user
 - **Run all verification checks** - do not commit if checks fail
 - **Be thorough in the revision summary** - document every significant change made in the "Modifications Made" section
-- **Create two commits** - one for the actual changes + revision.md (which was being updated throughout), one for the empty changelog
-- **Create empty changelog** - always create the empty changelog file after revision to prepare for future development
+- **One commit** - the actual changes + revision.md (which was being updated throughout) go in a single commit
 - **Check for x_review_comments.md** - if this file doesn't exist, ask the user to create it with their revision instructions
 
 ## Error Handling
@@ -379,6 +322,5 @@ If any issues occur during the process:
    - Adds detailed entry to "Modifications Made" section
 6. Runs `cargo fix`, `cargo fmt`, `cargo test`, `cargo clippy`
 7. Updates `revision.md` with verification results and final summary
-8. Creates `checkpoints/cp-260218/changelog-after-260218.md` (empty template)
-9. Creates two commits (changes + revision.md, then empty changelog)
-10. Reports completion with summary
+8. Creates one commit (changes + revision.md)
+9. Reports completion with summary

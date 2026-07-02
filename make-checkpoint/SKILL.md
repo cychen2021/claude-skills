@@ -15,6 +15,7 @@ This skill creates a timestamped checkpoint folder in `checkpoints/` containing:
 3. Tailored documentation review guidelines
 4. Tailored code review guidelines
 5. Tailored test-correctness audit guidelines (vibe-code-specific)
+6. An empty changelog file to track development that happens after this checkpoint
 
 Checkpoints help maintain code quality by providing structured review touchpoints after "vibe coding" sessions. The test-audit guideline is separate from the code review because passing tests in vibe-coded projects do **not** imply correct tests — circular mocks, mocked-out SUTs, and assertion-free smoke tests are common failure modes that the standard code review tends to skim over.
 
@@ -45,7 +46,50 @@ Create the new checkpoint folder:
 mkdir -p checkpoints/cp-<timestamp>
 ```
 
-### Step 4: Analyze Current Codebase State
+### Step 4: Create Empty Changelog File
+
+Create the changelog that will track development work happening *after* this
+checkpoint, so it exists from the moment the checkpoint is created rather
+than being created later (this used to be the `revise` skill's job — it no
+longer creates this file):
+
+```bash
+cat > checkpoints/cp-<timestamp>/changelog-after-<timestamp>.md << 'EOF'
+# Changelog After Checkpoint cp-<timestamp>
+
+This file tracks all changes made after this checkpoint. Document changes as they happen:
+
+## Features
+
+-
+
+## Bug Fixes
+
+-
+
+## Refactorings
+
+-
+
+## Documentation Updates
+
+-
+
+## Dependency Changes
+
+-
+
+## Breaking Changes
+
+-
+EOF
+```
+
+This file stays empty at checkpoint-creation time — it's populated during
+the development cycle that follows, and gets read back in as an input to
+**Step 6** (diff generation) of the *next* checkpoint.
+
+### Step 5: Analyze Current Codebase State
 
 Gather information about the current state:
 
@@ -77,7 +121,7 @@ Gather information about the current state:
 **Dependencies:**
 - Check `Cargo.toml` for new or updated dependencies
 
-### Step 5: Generate `status-quo.md`
+### Step 6: Generate `status-quo.md`
 
 Create a concise summary (200-400 words) covering:
 
@@ -119,12 +163,23 @@ Create a concise summary (200-400 words) covering:
 - Uncommitted changes: [if any]
 ```
 
-### Step 6: Generate `diff-vs-<previous_cp_timestamp>.md`
+### Step 7: Generate `diff-vs-<previous_cp_timestamp>.md`
 
 If a previous checkpoint exists, create a comparison document:
 
 **Load previous checkpoint:**
-Read `checkpoints/cp-<previous_timestamp>/status-quo.md`
+Read `checkpoints/cp-<previous_timestamp>/status-quo.md` and, if present,
+`checkpoints/cp-<previous_timestamp>/changelog-after-<previous_timestamp>.md`
+(populated during the intervening development cycle) as inputs.
+
+**Don't assume a minimal cycle.** A previous checkpoint may have been created
+on its own review branch while `main` kept moving in parallel — the commit
+that merges that branch back into `main` is not the same thing as "only the
+commits on that merge commit are new." Diff against the actual point where
+the previous checkpoint's branch diverged from `main`
+(`git merge-base <previous-checkpoint-commit> <main-at-that-time>`), not just
+against the merge commit, so the diff reflects everything that landed on
+`main` during the gap — not just what changed after the merge.
 
 **Generate diff covering:**
 
@@ -175,7 +230,7 @@ This is the first checkpoint for the project. No previous checkpoint exists for 
 
 In this case, `<previous_cp_timestamp>` will be `none`.
 
-### Step 7: Generate `doc-review-guidelines.md`
+### Step 8: Generate `doc-review-guidelines.md`
 
 > **Path naming convention:** Always use full paths (e.g. `ltrn-mapper/src/app.rs`,
 > `docs/draft/chiscript-plan.md`) when referencing files in the review guidelines.
@@ -278,7 +333,7 @@ These guidelines help you systematically review documentation for accuracy, comp
 - When in doubt, verify against actual code
 </markdown>
 
-### Step 8: Generate `code-review-guidelines.md`
+### Step 9: Generate `code-review-guidelines.md`
 
 > **Path naming convention:** Always use full paths (e.g. `ltrn-mapper/src/app.rs`,
 > `ltrn/src/game/loader.rs`) when referencing files in the review guidelines.
@@ -439,7 +494,7 @@ These guidelines help you systematically review code for quality, consistency, a
 - Balance idealism with pragmatism
 ```
 
-### Step 9: Generate `test-audit-guidelines.md`
+### Step 10: Generate `test-audit-guidelines.md`
 
 > **Path naming convention:** Always use full paths (e.g.
 > `src/buckai_dojo/aws/sweep.py`, `tests/test_aws_sweep.py`) when referencing
@@ -595,7 +650,7 @@ A list of tests in one of three buckets:
 
 ## Completion
 
-After generating all five files:
+After generating all six files:
 
 1. Confirm checkpoint created successfully:
    ```bash
@@ -608,6 +663,7 @@ After generating all five files:
    - Use `doc-review-guidelines.md` to review documentation
    - Use `code-review-guidelines.md` to review code
    - Use `test-audit-guidelines.md` to audit test correctness
+   - Log ongoing work in `changelog-after-<timestamp>.md` as it happens, ready for the next checkpoint's diff step
 
 3. Remind user about git workflow:
    - Checkpoints are meant to be committed to track review history in the repository
