@@ -38,6 +38,15 @@ ls -t checkpoints/cp-*/status-quo.md 2>/dev/null | head -1
 
 If found, extract the timestamp from the directory name (e.g., `checkpoints/cp-250115/` → `250115`).
 
+**Check for a `changelog-after-<prev_timestamp>.md` file in that previous checkpoint's directory before doing anything else.** If a checkpoint was created on a branch that later diverged from (or was merged back into) `main`, this file is the authoritative, already-researched record of everything that landed on `main` in parallel while that checkpoint was in review — do not re-derive this from scratch, and do not assume the checkpoint branch stayed isolated. Cross-check it against the actual current `HEAD`:
+
+```bash
+git log --oneline --graph --all | head -40
+git merge-base --is-ancestor <prev-checkpoint-commit> HEAD && echo "prev checkpoint is an ancestor of HEAD"
+```
+
+If `HEAD` is a descendant of a merge that brought the checkpoint branch back into `main` (or vice versa), the current codebase almost certainly **contains** the parallel work the changelog describes — treat status-quo.md, the diff, and the review guidelines as covering the *merged* reality, not a still-diverged branch. Getting this wrong produces a checkpoint that claims features are absent when they're actually sitting in the working tree (verify with `ls src/`, `grep <dep> Cargo.toml`, etc.), which misleads every reviewer who reads it.
+
 ### Step 3: Create Checkpoint Directory
 
 Create the new checkpoint folder:
