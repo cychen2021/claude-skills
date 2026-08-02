@@ -220,7 +220,15 @@ gh pr edit <pr-number> --add-reviewer "user1,user2"
 gh pr edit <pr-number> --add-reviewer "org/team"
 ```
 
-**GitHub Copilot code review** — as of this writing, there's no reliable CLI path. To add Copilot as an actual reviewer, the user must pick it from the Reviewers dropdown on the PR page in the web UI. (`gh pr edit --add-assignee "@copilot"` adds Copilot as an assignee, which is *not* the same as requesting review and will instead trigger Copilot to make changes — avoid unless that's what you want.)
+**GitHub Copilot code review** — request it **by default**, via the CLI, unless the user explicitly asked you not to:
+
+```bash
+gh pr edit <pr-number> --add-reviewer "@copilot"
+```
+
+`gh` supports the `@copilot` special value on `--add-reviewer` (`gh` ≥ 2.76; not on GitHub Enterprise Server). If the CLI rejects it as an unsupported value, fall back to the Reviewers dropdown on the PR page in the web UI. `--reviewer` on `gh pr create` does **not** accept `@copilot`, so request Copilot in a follow-up `gh pr edit`.
+
+Do **not** use `gh pr edit --add-assignee "@copilot"` as a substitute — assigning Copilot is not a review request and instead makes it edit the PR.
 
 **⚠️ Important:** When responding to Copilot review comments, do **not** @-mention "Copilot" or "@copilot" in your replies — mentions trigger Copilot to edit the PR rather than just review it.
 
@@ -273,7 +281,7 @@ Once the PR is green and all review feedback is handled:
 - **Breaking changes deserve extra care** — version bump, changelog entry, migration guidance in the PR body.
 - If the repo keeps a CHANGELOG or release-notes file, update it; if it only relies on commit messages, trust the messages.
 - `gh` must be authenticated (`gh auth status`).
-- GitHub Copilot code review requires repository-level enablement. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
+- GitHub Copilot code review is requested by default (`gh pr edit <n> --add-reviewer "@copilot"`) and requires repository-level enablement. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
 - `gh` reference: https://cli.github.com/manual/gh_pr
 
 ## Exit Criteria
