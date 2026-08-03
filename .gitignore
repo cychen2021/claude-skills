@@ -1,2 +1,29 @@
+# Python bytecode and caches
 __pycache__/
+*.py[cod]
+*$py.class
 
+# Packaging / build artifacts
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtualenvs
+.venv/
+venv/
+
+# Editor / OS cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
