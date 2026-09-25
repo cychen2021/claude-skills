@@ -220,7 +220,7 @@ gh pr edit <pr-number> --add-reviewer "user1,user2"
 gh pr edit <pr-number> --add-reviewer "org/team"
 ```
 
-**GitHub Copilot code review** — request it **by default**, via the CLI, unless the user explicitly asked you not to:
+**GitHub Copilot code review** — request it **by default**, via the CLI, unless the user explicitly asked you not to. Request it **once per PR**: never re-request it after pushing fixes, because each new review brings new comments and the review–fix cycle would not end. A further review is the user's call.
 
 ```bash
 gh pr edit <pr-number> --add-reviewer "@copilot"
@@ -262,7 +262,7 @@ done
 echo "no copilot review after 60 minutes"; exit 1
 ```
 
-Counting only reviews submitted after `since` is what makes the same loop correct for a re-review, when an older Copilot review is already on the PR. Tell the user in one line that the PR is up and you are waiting for Copilot's review, then stop; do not also poll in the foreground.
+Counting only reviews submitted after `since` keeps an older review, from before this skill ran, from being mistaken for the new one. Tell the user in one line that the PR is up and you are waiting for Copilot's review, then stop; do not also poll in the foreground.
 
 When the background task reports that the review arrived, **continue straight to section 10 without asking**: fetch both halves of the review — they live at different endpoints, and `gh pr view` shows neither reliably — and address them.
 
@@ -289,8 +289,8 @@ When reviews arrive:
 3. For each comment that *is* real, make the change, re-run the quality/test/orphaned-reference steps from sections 1–3.
 4. Commit. Reference the review in the body (e.g. "From Copilot review on #<pr-number>") so the reason for the change is recoverable later.
 5. `git push`.
-6. After the push, if another Copilot review is requested or triggered, wait for it with the background loop from section 9 (it counts only reviews submitted after it starts) and handle it the same way.
-7. Repeat until every comment is either fixed or explicitly answered.
+6. Do **not** request another Copilot review after the push, and do not wait for one: the one review requested in section 8 is the only one this skill acts on. If a later review arrives anyway (a repository setting can trigger one on push), tell the user it is there and leave it for them to decide on, rather than starting another round of fixes.
+7. Once every comment of that review is either fixed or explicitly answered, move on.
 
 ## 11. Final Notification
 
@@ -320,7 +320,7 @@ Once the PR is green and all review feedback is handled:
 - If the repo keeps a CHANGELOG or release-notes file, update it; if it only relies on commit messages, trust the messages.
 - `gh` must be authenticated (`gh auth status`).
 - GitHub Copilot code review is requested by default (`gh pr edit <n> --add-reviewer "@copilot"`) and requires repository-level enablement. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
-- Copilot's review is waited for automatically, by a background poll started right after the request (section 9), and its comments are addressed as soon as it lands, without asking. `gh pr view --json reviewRequests` omits bot reviewers, so verify via `gh api .../requested_reviewers`, or the timeline's `review_requested` event, instead of assuming the request failed.
+- Copilot is requested once per PR, never again after fixes, so reviewing and fixing cannot loop. Its review is waited for automatically, by a background poll started right after the request (section 9), and its comments are addressed as soon as it lands, without asking. `gh pr view --json reviewRequests` omits bot reviewers, so verify via `gh api .../requested_reviewers`, or the timeline's `review_requested` event, instead of assuming the request failed.
 - `gh` reference: https://cli.github.com/manual/gh_pr
 
 ## Exit Criteria
