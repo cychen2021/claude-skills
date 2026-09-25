@@ -51,7 +51,7 @@ git checkout -b <username>/feature/<descriptive-name>
 
 ## 3. Planning Phase (Optional)
 
-**Default:** enter plan mode for non-trivial features.
+**Default:** plan non-trivial features before coding.
 
 **Skip when:** the user passes `--skip-plan`, or the change is a trivial one-liner.
 
@@ -63,20 +63,19 @@ git checkout -b <username>/feature/<descriptive-name>
 
 **How to plan:**
 
-1. Use `EnterPlanMode` to enter planning mode.
-2. Explore with `Glob` / `Grep` / `Read` (or an Explore subagent for larger scopes) to understand:
+1. Explore with `Glob` / `Grep` / `Read` (or an Explore subagent for larger scopes) to understand:
    - Existing patterns and architecture in the detected toolchain.
    - Related code that will be affected.
    - Testing patterns (where `tests/` live, how fixtures work).
    - Documentation the change will impact.
-3. Design the implementation, covering:
+2. Design the implementation, covering:
    - Specific files and functions to touch.
    - How the feature integrates with existing code.
    - What tests are needed and where they go.
    - What documentation needs updating.
-4. Use `ExitPlanMode` to surface the plan for user approval.
+3. Present the plan to the user in a message for approval.
 
-**If plan mode is skipped:** sketch the approach in a short message before coding.
+**If planning is skipped:** sketch the approach in a short message before coding.
 
 ## 4. Wait for Go-Ahead
 

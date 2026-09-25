@@ -103,7 +103,7 @@ Determine if the removal constitutes a breaking change:
 
 ### 5. Create Removal Plan
 
-Use the `EnterPlanMode` tool to enter planning mode and create a detailed removal plan:
+Create a detailed removal plan:
 
 1. **Files to modify:**
    - List all files where code will be removed
@@ -133,7 +133,7 @@ Use the `EnterPlanMode` tool to enter planning mode and create a detailed remova
    - If breaking: note required CHANGELOG and version updates
    - If non-breaking: note that existing API surface is preserved
 
-Present the plan using `ExitPlanMode` tool.
+Present the plan to the user in a message.
 
 ### 6. Wait for Go-Ahead
 
