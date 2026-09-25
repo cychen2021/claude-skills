@@ -204,31 +204,38 @@ gh api -X POST repos/:owner/:repo/pulls/<pr-number>/requested_reviewers \
   -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
 ```
 
-## 8. Wait for the Review, Polling Periodically
+## 8. Wait for the Review, Polling Automatically in the Background
 
-Copilot's review typically arrives within a couple of minutes of the request. **Poll for it yourself rather than handing back to the user and waiting to be told it arrived.**
+Copilot's review can take anywhere from a minute to half an hour. **Start waiting for it yourself, immediately after requesting it, and do not hand the waiting back to the user.** A foreground poll with a short cap gives up too early; poll from a background shell instead, so you are re-invoked the moment the review lands, even after your turn has ended.
 
-Poll about every 30 seconds, for up to roughly 5 minutes:
+Right after the request in section 7, record the time and start this loop with the Bash tool's `run_in_background: true`:
 
 ```bash
-sleep 30
-gh api repos/:owner/:repo/pulls/<pr-number>/reviews \
-  --jq '.[] | {user: .user.login, state, submitted_at}'
+since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+for i in $(seq 120); do                     # every 30 s, for up to an hour
+  n=$(gh api repos/:owner/:repo/pulls/<pr-number>/reviews \
+        --jq "[.[] | select(.user.login == \"copilot-pull-request-reviewer[bot]\" and .submitted_at >= \"$since\")] | length")
+  [ "${n:-0}" -gt 0 ] && { echo "copilot review arrived"; exit 0; }
+  sleep 30
+done
+echo "no copilot review after 60 minutes"; exit 1
 ```
 
-The review has arrived once that returns an entry whose `user.login` is `copilot-pull-request-reviewer[bot]`. Then fetch both halves of it — they live at different endpoints, and `gh pr view` shows neither reliably:
+Counting only reviews submitted after `since` is what makes the same loop correct for a re-review, when an older Copilot review is already on the PR. Tell the user in one line that the PR is up and you are waiting for Copilot's review, then stop; do not also poll in the foreground.
+
+When the background task reports that the review arrived, **continue straight to section 9 without asking**: fetch both halves of the review — they live at different endpoints, and `gh pr view` shows neither reliably — and address them.
 
 ```bash
 # inline, line-anchored comments: the actionable findings
 gh api repos/:owner/:repo/pulls/<pr-number>/comments \
   --jq '.[] | {id, path, line, body}'
-# the review's own summary body
+# the review's own summary body, which can list further findings without inline comments
 gh api repos/:owner/:repo/pulls/<pr-number>/reviews --jq '.[] | {user: .user.login, state, body}'
 ```
 
-A review whose `state` is `COMMENTED` with zero inline comments means Copilot found nothing actionable. Say so and move to section 10.
+A review whose `state` is `COMMENTED` with zero inline comments and no findings in its body means Copilot found nothing actionable. Say so and move to section 10.
 
-If nothing has appeared after ~5 minutes, stop polling and tell the user the request is in but the review has not landed yet, so they can decide whether to wait or merge without it. Do not silently keep polling, and do not claim a review came back empty when it simply never arrived — those are different outcomes.
+If the loop gives up after an hour, check that the request landed at all: `requested_reviewers` often reads empty for a bot even when it did, so look for the `review_requested` event on the timeline (`gh api repos/:owner/:repo/issues/<pr-number>/timeline --jq '.[] | select(.event == "review_requested")'`). Then tell the user the request is in but no review has landed, so they can decide whether to wait longer or merge without it. Do not claim a review came back empty when it simply never arrived — those are different outcomes.
 
 Human reviewers are the exception: do not poll for them on a timer. Tell the user the PR is ready and let them signal when human feedback is in.
 
@@ -241,7 +248,7 @@ When reviews arrive:
 3. For each comment that *is* real, make the change, add a regression test that would have caught it, and re-run the quality/test steps from sections 1 and 2.
 4. Commit. Reference the review in the body (e.g. "From Copilot review on #<pr-number>") so the reason for the change is recoverable later.
 5. `git push`.
-6. Re-check for new comments after the push, since a fresh push can trigger another review pass.
+6. After the push, if another Copilot review is requested or triggered, wait for it with the background loop from section 8 (it counts only reviews submitted after it starts) and handle it the same way.
 7. Repeat until every comment is either fixed or explicitly answered.
 
 ## 10. Final Notification
@@ -271,7 +278,7 @@ Once the PR is green and all review feedback is handled:
 - Commit verified work promptly and never leave it uncommitted across a session boundary — uncommitted changes do not survive a branch switch, `git clean`, or a new session, and have been silently lost. After creating a commit, confirm it actually captured the changes (`git show --stat`): a commit made while edits were still unstaged can record only file moves with "0 insertions, 0 deletions".
 - `gh` must be authenticated (`gh auth status`).
 - GitHub Copilot code review is requested by default (`gh pr edit <n> --add-reviewer "@copilot"`) and requires repository-level enablement. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
-- Copilot's review is polled for, not waited on passively (section 8). `gh pr view --json reviewRequests` omits bot reviewers, so verify via `gh api .../requested_reviewers` instead of assuming the request failed.
+- Copilot's review is waited for automatically, by a background poll started right after the request (section 8), and its comments are addressed as soon as it lands, without asking. `gh pr view --json reviewRequests` omits bot reviewers, so verify via `gh api .../requested_reviewers`, or the timeline's `review_requested` event, instead of assuming the request failed.
 - `gh` reference: https://cli.github.com/manual/gh_pr
 
 ## Exit Criteria
@@ -281,6 +288,6 @@ Done when:
 2. Documentation is updated (or explicitly confirmed N/A).
 3. Commits are created and pushed.
 4. PR is opened and the reviewer requests are verified as landed.
-5. Copilot's review has been polled for and either arrived or timed out (the difference stated plainly).
+5. Copilot's review has been waited for in the background and either arrived and been addressed, or not arrived within the hour (the difference stated plainly).
 6. Review comments (if any) are addressed, and any judged to be false positives are answered with a reason.
 7. User is notified to merge.

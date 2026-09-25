@@ -108,7 +108,7 @@ Example:
 
 ## Integration with Other Skills
 
-- **After implementation:** `/finish-feature-impl` to run quality checks, update docs, commit, push, and open a PR. It requests GitHub Copilot code review by default and then polls for that review rather than handing back to the user to wait — if the user doesn't want Copilot reviewing this feature, say so when handing off.
+- **After implementation:** `/finish-feature-impl` to run quality checks, update docs, commit, push, and open a PR. It requests GitHub Copilot code review by default, waits for it with a background poll, and addresses the comments when they land, rather than handing back to the user to wait — if the user doesn't want Copilot reviewing this feature, say so when handing off.
 - **During implementation:** `/test` / `/debug-tests` if the project provides them.
 - **For commits:** `/commit` if the project provides it; otherwise follow conventions from `.vscode/general-commit.instructions.md` if present, or fall back to `CONTRIBUTING.md`, commitlint configuration, or recent `git log` examples.
 
