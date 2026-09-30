@@ -248,8 +248,29 @@ When reviews arrive:
 3. For each comment that *is* real, make the change, add a regression test that would have caught it, and re-run the quality/test steps from sections 1 and 2.
 4. Commit. Reference the review in the body (e.g. "From Copilot review on #<pr-number>") so the reason for the change is recoverable later.
 5. `git push`.
-6. Do **not** request another Copilot review after the push, and do not wait for one: the one review requested in section 7 is the only one this skill acts on. If a later review arrives anyway (a repository setting can trigger one on push), tell the user it is there and leave it for them to decide on, rather than starting another round of fixes.
-7. Once every comment of that review is either fixed or explicitly answered, move on.
+6. **Reply to each thread, then resolve it.** After a comment is handled — the fix pushed, or a false positive answered — post a short reply on that thread (what changed, or why it does not apply) and then mark the conversation **resolved**, so the human does not have to click "Resolve conversation" on every one. `gh` has no direct command for this; use the GraphQL API. Fetch the thread ids once, match them to the comments you addressed by `path`/`line`/`body`, and resolve each — skipping any already `isResolved`, and never resolving a thread you did not actually act on:
+
+   ```bash
+   # GraphQL variables are not the REST :owner/:repo shortcuts, so derive them first
+   owner=$(gh repo view --json owner --jq .owner.login)
+   repo=$(gh repo view --json name --jq .name)
+
+   # thread ids, with enough of each comment to match it to what you addressed
+   gh api graphql -f query='
+     query($owner:String!,$repo:String!,$pr:Int!){
+       repository(owner:$owner,name:$repo){ pullRequest(number:$pr){
+         reviewThreads(first:100){ nodes{ id isResolved isOutdated
+           comments(first:1){ nodes{ path line body } } } } } } }' \
+     -f owner="$owner" -f repo="$repo" -F pr=<pr-number>
+
+   # resolve one thread (reply first — a resolved thread with no reply hides the reasoning)
+   gh api graphql -f query='
+     mutation($id:ID!){ resolveReviewThread(input:{threadId:$id}){ thread{ id isResolved } } }' \
+     -f id=<thread-id>
+   ```
+
+7. Do **not** request another Copilot review after the push, and do not wait for one: the one review requested in section 7 is the only one this skill acts on. If a later review arrives anyway (a repository setting can trigger one on push), tell the user it is there and leave it for them to decide on, rather than starting another round of fixes.
+8. Once every comment of that review is either fixed or explicitly answered — and its thread replied to and resolved — move on.
 
 ## 10. Final Notification
 
@@ -289,5 +310,5 @@ Done when:
 3. Commits are created and pushed.
 4. PR is opened and the reviewer requests are verified as landed.
 5. Copilot's review has been waited for in the background and either arrived and been addressed, or not arrived within the hour (the difference stated plainly).
-6. Review comments (if any) are addressed, and any judged to be false positives are answered with a reason.
+6. Review comments (if any) are addressed, and any judged to be false positives are answered with a reason; each addressed thread is replied to and marked resolved.
 7. User is notified to merge.
