@@ -168,7 +168,7 @@ Once approved:
 
 This skill is designed to work with the full nrv workflow:
 
-- **After removal:** Use `/finish-feature-remove` to complete the removal with testing, docs verification, and PR creation. It requests GitHub Copilot code review by default, waits for it with a background poll, and addresses the comments when they land, rather than handing back to the user to wait — if the user doesn't want Copilot reviewing this removal, say so when handing off
+- **After removal:** Use `/finish-feature-remove` to complete the removal with testing, docs verification, and PR creation. It requests GitHub Copilot code review by default (falling back to a Codex cloud review via an `@codex review` PR comment when Copilot is out of credits), waits for it with a background poll, and addresses the comments when they land, rather than handing back to the user to wait — if the user doesn't want Copilot reviewing this removal, say so when handing off
 - **During removal:** Use `/test` to verify changes, `/debug-tests` to fix failures
 - **For commits:** Use `/commit` to follow nrv commit conventions
 
