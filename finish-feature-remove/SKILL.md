@@ -1,6 +1,6 @@
 ---
 name: finish-feature-remove
-description: Complete a feature removal with quality checks, testing, orphaned-reference verification, documentation updates, commits, and PR creation. Supports common Rust (Cargo) and Python projects (uv / Poetry / Hatch / pip). Runs the appropriate formatter, linter, and test commands for the detected toolchain, verifies no orphaned references remain, updates relevant documentation, creates commits, pushes to remote, creates a PR via the `gh` CLI, and manages the review workflow. AUTOMATICALLY use this skill when feature removal work is complete and the removal checklist is finished, or when the user explicitly requests to "finish removal", "wrap up removal", "complete removal and create PR", or indicates the removal is ready for finalization.
+description: Complete a feature removal with quality checks, testing, orphaned-reference verification, documentation updates, commits, and PR creation. Supports common Rust (Cargo) and Python projects (uv / Poetry / Hatch / pip). Runs the appropriate formatter, linter, and test commands for the detected toolchain, verifies no orphaned references remain, updates relevant documentation, splits large changes into several commits, pushes to remote, marks the draft PR (opened by `init-feature-remove`) ready or creates one via the `gh` CLI, and manages the review workflow. AUTOMATICALLY use this skill when feature removal work is complete and the removal checklist is finished, or when the user explicitly requests to "finish removal", "wrap up removal", "complete removal and create PR", or indicates the removal is ready for finalization.
 ---
 
 # Finish Feature Remove
@@ -167,21 +167,51 @@ Follow the project's commit conventions. Check `.vscode/general-commit.instructi
 
 If the repo exposes a `/commit` skill, prefer that — it will encode the conventions above.
 
-Default: **create a new commit**; do not squash unless the user asks.
+Default: **create new commits**; do not squash unless the user asks.
+
+**Split large changes into several commits, one per concern**, so each can be read, reverted and bisected on its own. Split when the change does more than one thing, or when it is large (as a rough guide, more than about 300 changed lines or 10 files): then look for the seams. Typical seams:
+  - removing the uses of the feature (callers, CLI wiring, config keys), before removing its definitions;
+  - removing the feature's own code, together with the tests that covered it;
+  - each independent part of a larger removal (one command, one module, one schema field), on its own;
+  - documentation and the changelog's breaking change notice, last.
+
+Rules for splitting:
+- Keep tests in the same commit as the code they test, and generated files in the same commit as the source change that produced them.
+- Order commits so each one builds: no commit deletes a definition that code left in place by that commit still uses. The full test suite runs once on the final state (sections 2 and 3), not once per commit.
+- Stage each group by path (`git add <paths>`). When one file holds hunks of two concerns, stage one concern's hunks with a filtered patch (`git diff <file>` into a temporary file, delete the other hunks, then `git apply --cached` it), since interactive `git add -p` is not available. If a file does not split cleanly, keep it whole in one commit rather than forcing it.
+- Commits already made during the work count: split only what is still uncommitted, and never rewrite commits that are already pushed.
+- Do not split a small, single-purpose change just to have more commits.
+- Afterwards, check `git log --stat <base>..HEAD`: each headline describes only its own commit's content.
 
 ## 6. Push to Remote
 
-```bash
-# first push of a new branch
-git push -u origin <branch-name>
+The branch normally tracks its remote already, since `/init-feature-remove` pushed it when it opened the draft PR:
 
-# subsequent pushes
+```bash
 git push
+
+# only if the branch was never pushed
+git push -u origin <branch-name>
 ```
 
-## 7. Create Pull Request
+## 7. Mark the Pull Request Ready
 
-Draft a PR with `gh pr create`. Call out breaking changes prominently so reviewers and downstream consumers see them. Trim sections that don't apply.
+`/init-feature-remove` opened a draft PR when the work started. Find it:
+
+```bash
+gh pr view --json number,url,isDraft,title
+```
+
+**If the PR exists**, rewrite its title and description for the finished work with the template below (it replaces the draft's plan and status sections), then mark it ready for review:
+
+```bash
+gh pr edit <pr-number> --title "<concise title, under 70 chars>" --body "<the template below>"
+gh pr ready <pr-number>
+```
+
+Mark it ready **before** requesting review in section 8: a draft can be skipped by reviewers and by Codex's automatic reviews.
+
+**If there is no PR** (the branch was started without `/init-feature-remove`), create one, not as a draft. Call out breaking changes prominently so reviewers and downstream consumers see them. Trim sections that don't apply.
 
 ```bash
 gh pr create --title "<concise title, under 70 chars>" --body "$(cat <<'EOF'
@@ -326,8 +356,8 @@ Done when:
 1. All tests / lints / type checks pass.
 2. No orphaned references remain.
 3. Documentation is updated (or explicitly confirmed N/A).
-4. Commits are created and pushed.
-5. PR is opened and the review requests are verified as landed (Codex reacted to `@codex review`).
+4. Commits are created (a large change split into one commit per concern) and pushed.
+5. The PR is marked ready for review (no longer a draft) and the review requests are verified as landed (Codex reacted to `@codex review`).
 6. Codex's review has been waited for in the background and either arrived and been addressed, or not arrived within the hour (the difference stated plainly).
 7. Review comments (if any) are addressed, and any judged to be false positives are answered with a reason.
 8. User is notified to merge.

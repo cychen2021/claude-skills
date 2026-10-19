@@ -145,7 +145,35 @@ Examples of go-ahead signals:
 - "Let's do it"
 - "Go ahead"
 
-### 7. Begin Removal
+### 7. Open a Draft PR
+
+Once the user has approved the plan, open the PR now, as a **draft**, before changing any code. An open draft PR shows the work's progress as commits land, runs CI on each push so a break shows up early, and gives the plan a home that outlives the session. `/finish-feature-remove` later rewrites its description for the finished work and marks it ready for review.
+
+Skip this step only when the project's own instructions say small changes go straight to the default branch without a PR, and this change is one of those.
+
+GitHub cannot open a PR for a branch with no commits beyond its base, so start the branch with an empty commit that records the plan (follow the project's commit conventions for its wording):
+
+```bash
+git commit --allow-empty -m "Start <removal name>" -m "<the approved plan, or the sketch, as short bullets>"
+git push -u origin <branch-name>
+gh pr create --draft --title "<concise title, under 70 chars>" --body "$(cat <<'EOF'
+## Summary
+- 1–3 bullets on what will be removed and why, and whether it is a breaking change.
+
+## Plan
+- The approved plan, as bullets.
+
+## Status
+Draft: work in progress. It will be marked ready for review when done.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+Do **not** request a review on the draft (no `@codex review` comment, no reviewers): `/finish-feature-remove` requests the one Codex review when the work is done. Record the PR number and give the user the link in one line.
+
+### 8. Begin Removal
 
 Once approved:
 
@@ -160,7 +188,8 @@ Once approved:
 
 5. Follow nrv code conventions (see CLAUDE.md):
    - If removing a `Formula` variant, update both `SemanticAnalyzer` and `TypedSemanticAnalyzer`
-   - Keep commits focused and atomic
+   - Keep commits focused, one per concern: a large removal lands as several commits, for example removing the uses of the feature first, then its own code together with the tests that covered it, then the documentation. Order them so each one builds. `/finish-feature-remove` has the full splitting rules
+   - Push after each commit (`git push`), so the draft PR shows the progress
    - Run `cargo fix --allow-dirty` and `cargo fmt` after changes
    - Ensure no orphaned imports or dead code remains
 
@@ -168,13 +197,13 @@ Once approved:
 
 This skill is designed to work with the full nrv workflow:
 
-- **After removal:** Use `/finish-feature-remove` to complete the removal with testing, docs verification, and PR creation. It requests a Codex code review (an `@codex review` comment) by default, waits for it with a background poll, and addresses the comments when they land, rather than handing back to the user to wait — if the user doesn't want Codex reviewing this removal, say so when handing off
+- **After removal:** Use `/finish-feature-remove` to complete the removal with testing, docs verification, and marking the draft PR ready for review. It requests a Codex code review (an `@codex review` comment) by default, waits for it with a background poll, and addresses the comments when they land, rather than handing back to the user to wait — if the user doesn't want Codex reviewing this removal, say so when handing off
 - **During removal:** Use `/test` to verify changes, `/debug-tests` to fix failures
 - **For commits:** Use `/commit` to follow nrv commit conventions
 
 ## Notes
 
-- This skill focuses on initialization and planning—actual removal happens after user approval
+- This skill focuses on initialization and planning—actual removal happens after user approval. It opens a draft PR before the first change, so the work is visible from its first commit
 - Always check `CLAUDE.md` for the latest development workflow and conventions
 - Removal branches keep main stable and allow for easier review
 - Be thorough in dependency analysis—missed references can break the build

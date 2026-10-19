@@ -1,6 +1,6 @@
 ---
 name: finish-feature-impl
-description: Complete a feature implementation with quality checks, testing, documentation updates, commits, and PR creation. Supports common Rust (Cargo) and Python projects (uv / Poetry / Hatch / pip). Runs the appropriate formatter, linter, and test commands for the detected toolchain, updates relevant documentation, creates commits, pushes to remote, creates a PR via the `gh` CLI, and manages the review workflow. AUTOMATICALLY use this skill when feature implementation work is complete, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
+description: Complete a feature implementation with quality checks, testing, documentation updates, commits, and PR creation. Supports common Rust (Cargo) and Python projects (uv / Poetry / Hatch / pip). Runs the appropriate formatter, linter, and test commands for the detected toolchain, updates relevant documentation, splits large changes into several commits, pushes to remote, marks the draft PR (opened by `init-feature-impl`) ready or creates one via the `gh` CLI, and manages the review workflow. AUTOMATICALLY use this skill when feature implementation work is complete, or when the user explicitly requests to "finish feature", "wrap up feature", "complete feature and create PR", or indicates the feature is ready for finalization.
 ---
 
 # Finish Feature Impl
@@ -131,23 +131,52 @@ Follow the project's commit conventions. Check `.vscode/general-commit.instructi
 
 If the repo exposes a `/commit` skill, prefer that — it will encode the conventions above.
 
-Default: **create a new commit**; do not squash unless the user asks.
+Default: **create new commits**; do not squash unless the user asks.
+
+**Split large changes into several commits, one per concern**, so each can be read, reverted and bisected on its own. Split when the change does more than one thing, or when it is large (as a rough guide, more than about 300 changed lines or 10 files): then look for the seams. Typical seams:
+  - a preparatory move, rename or extraction that changes no behaviour, before the change that needs it;
+  - each independent piece of the feature (one command, one module, one schema change), with its own tests;
+  - documentation that spans several pieces, last.
+
+Rules for splitting:
+- Keep tests in the same commit as the code they test, and generated files in the same commit as the source change that produced them.
+- Order commits so each one builds: no commit calls a function that a later commit adds. The full test suite runs once on the final state (section 2), not once per commit.
+- Stage each group by path (`git add <paths>`). When one file holds hunks of two concerns, stage one concern's hunks with a filtered patch (`git diff <file>` into a temporary file, delete the other hunks, then `git apply --cached` it), since interactive `git add -p` is not available. If a file does not split cleanly, keep it whole in one commit rather than forcing it.
+- Commits already made during the work count: split only what is still uncommitted, and never rewrite commits that are already pushed.
+- Do not split a small, single-purpose change just to have more commits.
+- Afterwards, check `git log --stat <base>..HEAD`: each headline describes only its own commit's content.
 
 **Stage before committing, then verify the commit captured everything.** Run `git add -A` (or stage the intended paths) *before* `git commit`, and after committing run `git show --stat HEAD` to confirm the content edits landed — a commit created while edits are unstaged can silently record only file renames/moves ("0 insertions, 0 deletions"). If work was left uncommitted from a prior session, it may already be lost; check `git log` / `git reflog` before assuming it persisted.
 
 ## 5. Push to Remote
 
-```bash
-# first push of a new branch
-git push -u origin <branch-name>
+The branch normally tracks its remote already, since `/init-feature-impl` pushed it when it opened the draft PR:
 
-# subsequent pushes
+```bash
 git push
+
+# only if the branch was never pushed
+git push -u origin <branch-name>
 ```
 
-## 6. Create Pull Request
+## 6. Mark the Pull Request Ready
 
-Draft a PR with `gh pr create`. The body template below is generic; trim sections that don't apply.
+`/init-feature-impl` opened a draft PR when the work started. Find it:
+
+```bash
+gh pr view --json number,url,isDraft,title
+```
+
+**If the PR exists**, rewrite its title and description for the finished work with the template below (it replaces the draft's plan and status sections), then mark it ready for review:
+
+```bash
+gh pr edit <pr-number> --title "<concise title, under 70 chars>" --body "<the template below>"
+gh pr ready <pr-number>
+```
+
+Mark it ready **before** requesting review in section 7: a draft can be skipped by reviewers and by Codex's automatic reviews.
+
+**If there is no PR** (the branch was started without `/init-feature-impl`), create one, not as a draft. The body template below is generic; trim sections that don't apply.
 
 ```bash
 gh pr create --title "<concise title, under 70 chars>" --body "$(cat <<'EOF'
@@ -304,8 +333,8 @@ Once the PR is green and all review feedback is handled:
 Done when:
 1. All tests / lints / type checks pass.
 2. Documentation is updated (or explicitly confirmed N/A).
-3. Commits are created and pushed.
-4. PR is opened and the review requests are verified as landed (Codex reacted to `@codex review`).
+3. Commits are created (a large change split into one commit per concern) and pushed.
+4. The PR is marked ready for review (no longer a draft) and the review requests are verified as landed (Codex reacted to `@codex review`).
 5. Codex's review has been waited for in the background and either arrived and been addressed, or not arrived within the hour (the difference stated plainly).
 6. Review comments (if any) are addressed, and any judged to be false positives are answered with a reason; each addressed thread is replied to and marked resolved.
 7. User is notified to merge.
