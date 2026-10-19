@@ -179,60 +179,47 @@ gh pr edit <pr-number> --add-reviewer "user1,user2"
 gh pr edit <pr-number> --add-reviewer "org/team"
 ```
 
-**GitHub Copilot code review** — request it **by default**, via the CLI, unless the user explicitly asked you not to. Request it **once per PR**: never re-request it after pushing fixes, because each new review brings new comments and the review–fix cycle would not end. A further review is the user's call.
-
-```bash
-gh pr edit <pr-number> --add-reviewer "@copilot"
-```
-
-`gh` supports the `@copilot` special value on `--add-reviewer` (`gh` ≥ 2.76; not on GitHub Enterprise Server). If the CLI rejects it as an unsupported value, fall back to the Reviewers dropdown on the PR page in the web UI. `--reviewer` on `gh pr create` does **not** accept `@copilot`, so request Copilot in a follow-up `gh pr edit`.
-
-Do **not** use `gh pr edit --add-assignee "@copilot"` as a substitute — assigning Copilot is not a review request and instead makes it edit the PR.
-
-**⚠️ Important:** When responding to Copilot review comments, do **not** @-mention "Copilot" or "@copilot" in your replies — mentions trigger Copilot to edit the PR rather than just review it.
-
-Verify requests landed — and do not trust the exit code alone. `gh pr edit --add-reviewer "@copilot"` can exit 0 while the request never lands, and `gh pr view --json reviewRequests` does not list bot reviewers, so it reads `[]` even on success. Check the REST endpoint, which does list them:
-
-```bash
-gh api repos/:owner/:repo/pulls/<pr-number>/requested_reviewers --jq '.users[].login'
-```
-
-If Copilot is absent from that output, request it directly by its bot login before moving on:
-
-```bash
-gh api -X POST repos/:owner/:repo/pulls/<pr-number>/requested_reviewers \
-  -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
-```
-
-**Fallback: Codex cloud review when Copilot is out of credits.** If Copilot cannot review because its premium-request quota or credits are exhausted (the user says so, or Copilot's request or review reports a quota or credit error), ask Codex to review the PR on its cloud instead, by mentioning it in a PR comment:
+**Codex code review**: request it **by default**, unless the user explicitly asked you not to. Do **not** request GitHub Copilot's review (its credits are kept for other work). Codex is the ChatGPT Codex Connector GitHub app, which reviews a PR when someone comments `@codex review` on it. Request it **once per PR**: never re-request it after pushing fixes, because each new review brings new comments and the review–fix cycle would not end. A further review is the user's call.
 
 ```bash
 gh pr comment <pr-number> --body "@codex review"
 ```
 
-This needs the repository connected to Codex cloud (the ChatGPT Codex Connector GitHub app); Codex then posts a regular PR review with inline comments as `chatgpt-codex-connector[bot]`. The Copilot rules carry over unchanged: request it **once per PR**, never again after fixes, and do **not** @-mention `@codex` in replies to its review threads, since each mention starts a new Codex task. Do **not** substitute a local `codex review` run for the cloud review: the user wants the review on the PR, where it is visible and threaded. Wait for it with the same background poll below, setting `bot` to Codex's login.
+Do **not** substitute a local `codex review` run for this: the user wants the review on the PR, where it is visible and threaded.
+
+Codex answers as the bot `chatgpt-codex-connector[bot]`. Within a few seconds it adds an 👀 reaction and posts a placeholder comment marked `<!-- codex-pull-request-review-summary -->`. That placeholder is **not** the review. The review itself comes later, in one of two forms:
+
+- **Findings**: a pull request review (`state` `COMMENTED`) whose body starts with `<!-- codex-review-receipt:v1 -->` and "Codex Review", with the findings as inline comments.
+- **Nothing found**: a plain PR comment starting with `<!-- codex-review-receipt:v1 -->` that says "Codex Review: Didn't find any major issues", plus a 👍 reaction on the PR.
+
+If no 👀 reaction or placeholder appears within a couple of minutes, the Codex app is probably not installed on the repository (or Codex is not set up for it at chatgpt.com/codex). Tell the user rather than waiting an hour for nothing.
+
+**⚠️ Important:** When replying to Codex's review comments, do **not** write `@codex` in your replies: a mention is a new instruction to Codex (another review, or a task to change the PR), not a reply.
 
 ## 8. Wait for the Review, Polling Automatically in the Background
 
-Copilot's review can take anywhere from a minute to half an hour. **Start waiting for it yourself, immediately after requesting it, and do not hand the waiting back to the user.** A foreground poll with a short cap gives up too early; poll from a background shell instead, so you are re-invoked the moment the review lands, even after your turn has ended.
+Codex's review usually lands within a few minutes but can take longer. **Start waiting for it yourself, immediately after requesting it, and do not hand the waiting back to the user.** A foreground poll with a short cap gives up too early; poll from a background shell instead, so you are re-invoked the moment the review lands, even after your turn has ended.
 
-Right after the request in section 7, record the time and start this loop with the Bash tool's `run_in_background: true`:
+Right after the request in section 7, record the time and start this loop with the Bash tool's `run_in_background: true`. It watches both places the review can land (a pull request review, or a plain PR comment when nothing was found), and only counts entries carrying the `codex-review-receipt` marker, so the early placeholder comment is not mistaken for the review:
 
 ```bash
-bot="copilot-pull-request-reviewer[bot]"   # or "chatgpt-codex-connector[bot]" for the Codex fallback
 since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+bot='chatgpt-codex-connector[bot]'
 for i in $(seq 120); do                     # every 30 s, for up to an hour
-  n=$(gh api repos/:owner/:repo/pulls/<pr-number>/reviews \
+  r=$(gh api repos/:owner/:repo/pulls/<pr-number>/reviews \
         --jq "[.[] | select(.user.login == \"$bot\" and .submitted_at >= \"$since\")] | length")
-  [ "${n:-0}" -gt 0 ] && { echo "$bot review arrived"; exit 0; }
+  c=$(gh api repos/:owner/:repo/issues/<pr-number>/comments \
+        --jq "[.[] | select(.user.login == \"$bot\" and .created_at >= \"$since\" and (.body | contains(\"codex-review-receipt\")))] | length")
+  [ "${r:-0}" -gt 0 ] && { echo "codex review arrived with findings"; exit 0; }
+  [ "${c:-0}" -gt 0 ] && { echo "codex review arrived: no major issues"; exit 0; }
   sleep 30
 done
-echo "no $bot review after 60 minutes"; exit 1
+echo "no codex review after 60 minutes"; exit 1
 ```
 
-Counting only reviews submitted after `since` keeps an older review, from before this skill ran, from being mistaken for the new one. Tell the user in one line that the PR is up and you are waiting for the review (Copilot's, or Codex's if it took over), then stop; do not also poll in the foreground.
+Counting only entries made after `since` keeps an older review, from before this skill ran, from being mistaken for the new one. Tell the user in one line that the PR is up and you are waiting for Codex's review, then stop; do not also poll in the foreground.
 
-When the background task reports that the review arrived, **continue straight to section 9 without asking**: fetch both halves of the review — they live at different endpoints, and `gh pr view` shows neither reliably — and address them.
+When the background task reports a review with findings, **continue straight to section 9 without asking**: fetch both halves of the review (they live at different endpoints, and `gh pr view` shows neither reliably) and address them.
 
 ```bash
 # inline, line-anchored comments: the actionable findings
@@ -242,9 +229,9 @@ gh api repos/:owner/:repo/pulls/<pr-number>/comments \
 gh api repos/:owner/:repo/pulls/<pr-number>/reviews --jq '.[] | {user: .user.login, state, body}'
 ```
 
-A review whose `state` is `COMMENTED` with zero inline comments and no findings in its body means Copilot found nothing actionable. Say so and move to section 10.
+When it reports "no major issues", Codex found nothing actionable. Say so and move to section 10.
 
-If the loop gives up after an hour, check that the request landed at all: `requested_reviewers` often reads empty for a bot even when it did, so look for the `review_requested` event on the timeline (`gh api repos/:owner/:repo/issues/<pr-number>/timeline --jq '.[] | select(.event == "review_requested")'`). Then tell the user the request is in but no review has landed, so they can decide whether to wait longer or merge without it. Do not claim a review came back empty when it simply never arrived — those are different outcomes.
+If the loop gives up after an hour, check whether Codex picked the request up at all: look for its 👀 reaction on your `@codex review` comment or its placeholder comment (`gh api repos/:owner/:repo/issues/<pr-number>/comments --jq '.[] | select(.user.login == "chatgpt-codex-connector[bot]") | {created_at, body: .body[0:120]}'`). Then tell the user what you found, so they can decide whether to wait longer or merge without it. Do not claim a review came back empty when it simply never arrived: those are different outcomes.
 
 Human reviewers are the exception: do not poll for them on a timer. Tell the user the PR is ready and let them signal when human feedback is in.
 
@@ -253,9 +240,9 @@ Human reviewers are the exception: do not poll for them on a timer. Tell the use
 When reviews arrive:
 
 1. Read every inline comment and the summary body (see the commands above).
-2. **Judge each comment before acting on it.** Reviewers, Copilot especially, produce both real defects and confident-sounding false positives. Verify the claim against the code first: read the cited lines, and where practical write a failing test that reproduces the problem. If a comment is wrong or does not apply, leave the code alone and say why in your reply. Blanket-applying every suggestion is how a good branch gets worse.
+2. **Judge each comment before acting on it.** Reviewers, automated ones especially, produce both real defects and confident-sounding false positives. Verify the claim against the code first: read the cited lines, and where practical write a failing test that reproduces the problem. If a comment is wrong or does not apply, leave the code alone and say why in your reply. Blanket-applying every suggestion is how a good branch gets worse.
 3. For each comment that *is* real, make the change, add a regression test that would have caught it, and re-run the quality/test steps from sections 1 and 2.
-4. Commit. Reference the review in the body (e.g. "From Copilot review on #<pr-number>" or "From Codex review on #<pr-number>") so the reason for the change is recoverable later.
+4. Commit. Reference the review in the body (e.g. "From Codex review on #<pr-number>") so the reason for the change is recoverable later.
 5. `git push`.
 6. **Reply to each thread, then resolve it.** After a comment is handled — the fix pushed, or a false positive answered — post a short reply on that thread (what changed, or why it does not apply) and then mark the conversation **resolved**, so the human does not have to click "Resolve conversation" on every one. `gh` has no direct command for this; use the GraphQL API. Fetch the thread ids once, match them to the comments you addressed by `path`/`line`/`body`, and resolve each — skipping any already `isResolved`, and never resolving a thread you did not actually act on:
 
@@ -278,7 +265,7 @@ When reviews arrive:
      -f id=<thread-id>
    ```
 
-7. Do **not** request another Copilot review after the push, and do not wait for one: the one review requested in section 7 is the only one this skill acts on. If a later review arrives anyway (a repository setting can trigger one on push), tell the user it is there and leave it for them to decide on, rather than starting another round of fixes.
+7. Do **not** comment `@codex review` again after the push, and do not wait for another review: the one review requested in section 7 is the only one this skill acts on. If a later review arrives anyway (Codex's automatic reviews, if turned on for the repository, can trigger one on push), tell the user it is there and leave it for them to decide on, rather than starting another round of fixes.
 8. Once every comment of that review is either fixed or explicitly answered — and its thread replied to and resolved — move on.
 
 ## 10. Final Notification
@@ -307,9 +294,9 @@ Once the PR is green and all review feedback is handled:
 - If the repo keeps a CHANGELOG or release-notes file, update it; if it only relies on commit messages, trust the messages.
 - Commit verified work promptly and never leave it uncommitted across a session boundary — uncommitted changes do not survive a branch switch, `git clean`, or a new session, and have been silently lost. After creating a commit, confirm it actually captured the changes (`git show --stat`): a commit made while edits were still unstaged can record only file moves with "0 insertions, 0 deletions".
 - `gh` must be authenticated (`gh auth status`).
-- GitHub Copilot code review is requested by default (`gh pr edit <n> --add-reviewer "@copilot"`) and requires repository-level enablement. See: https://docs.github.com/en/copilot/using-github-copilot/code-review/using-copilot-code-review
-- When Copilot is out of credits, Codex reviews the PR on its cloud instead: comment `@codex review` on the PR (section on requesting review). The same once-per-PR rule applies, and its review is polled for as `chatgpt-codex-connector[bot]`.
-- Copilot is requested once per PR, never again after fixes, so reviewing and fixing cannot loop. Its review is waited for automatically, by a background poll started right after the request (section 8), and its comments are addressed as soon as it lands, without asking. `gh pr view --json reviewRequests` omits bot reviewers, so verify via `gh api .../requested_reviewers`, or the timeline's `review_requested` event, instead of assuming the request failed.
+- Codex code review is requested by default (`gh pr comment <n> --body "@codex review"`) and requires the ChatGPT Codex Connector GitHub app on the repository. See: https://developers.openai.com/codex/integrations/github
+- GitHub Copilot's review is not requested: its credits are kept for other work. Use it only if the user asks for it by name.
+- Codex is requested once per PR, never again after fixes, so reviewing and fixing cannot loop. Its review is waited for automatically, by a background poll started right after the request (section 8), and its comments are addressed as soon as it lands, without asking. Its first comment is a placeholder: wait for the `codex-review-receipt` marker before treating the review as done.
 - `gh` reference: https://cli.github.com/manual/gh_pr
 
 ## Exit Criteria
@@ -318,7 +305,7 @@ Done when:
 1. All tests / lints / type checks pass.
 2. Documentation is updated (or explicitly confirmed N/A).
 3. Commits are created and pushed.
-4. PR is opened and the reviewer requests are verified as landed.
-5. Copilot's review has been waited for in the background and either arrived and been addressed, or not arrived within the hour (the difference stated plainly).
+4. PR is opened and the review requests are verified as landed (Codex reacted to `@codex review`).
+5. Codex's review has been waited for in the background and either arrived and been addressed, or not arrived within the hour (the difference stated plainly).
 6. Review comments (if any) are addressed, and any judged to be false positives are answered with a reason; each addressed thread is replied to and marked resolved.
 7. User is notified to merge.
