@@ -1,112 +1,86 @@
 ---
 name: merge-cp
-description: Merge a checkpoint branch (created by the make-checkpoint skill and possibly revised by the revise skill, e.g. checkpoints/cp-YYMMDD) back into main. Resolves merge conflicts, then forward-applies any new coding convention or optimization the checkpoint branch introduced to the commits that landed on main in parallel while the checkpoint branch was in review, so the merged codebase is consistent everywhere instead of only on the files the checkpoint branch happened to touch. Use when the user asks to merge a checkpoint branch, merge a checkpoint back to main, reconcile a checkpoint branch with main, or land checkpoint review feedback into main.
+description: Merge a checkpoint branch (checkpoints/cp-YYMMDD, made by make-cp and changed by revise) back into the default branch. Merges the default branch into the checkpoint branch first, applies the rules the review set to the code that landed in parallel, runs the checks, writes merge-notes.md, lands the branch through one PR or stacked PRs, brings any newer checkpoint branch up to date, and cleans up. Use when the user asks to merge a checkpoint, land a checkpoint, or reconcile a checkpoint branch with main.
 ---
 
 # Merge Checkpoint Branch
 
-Merge a `checkpoints/cp-*` branch into `main`, then retroactively sweep the checkpoint's conventions and optimizations across whatever else landed on `main` while the checkpoint was in review.
+While a checkpoint branch is in review, the default branch keeps moving. A plain merge joins the text but leaves the parallel work behind the rules that the review set (new names, new conventions, fixes to a pattern). This skill also applies those rules to the parallel work, so they hold everywhere.
 
-## Why this differs from `merge-pr`
+All the work happens on the checkpoint branch, so the default branch is never broken.
 
-`merge-pr` merges an ordinary feature branch and assumes both sides are otherwise compatible — it resolves textual conflicts and stops. A checkpoint branch is different: it exists purely for manual review, and while it sits in review, `main` keeps moving via unrelated PRs that never saw whatever conventions or fixes the checkpoint's `revise` cycle established. A plain `git merge` reconciles text but leaves those parallel commits stylistically and structurally behind. `merge-cp` treats the checkpoint branch as the source of a **convention/optimization delta** that must be swept across the *entire* post-fork history of `main`, not just the files the checkpoint branch itself edited.
+## 1. Find the branches and the two sets of commits
 
-Conflict resolution and the format/test/lint verification loop below are mechanically the same as in `merge-pr` — read that skill's Steps 3–5 for the full walkthrough if a conflict or a failing check needs more detail than is repeated here.
-
-## Step 0: Detect project type and tooling
-
-Same detection as `merge-pr`: `Cargo.toml` → Rust, `pyproject.toml` → Python (uv/Poetry/Hatch/pip by lockfile/config), both → mixed. Prefer repo-provided wrapper scripts (`format.py`, `type_check.py`, `runtest.py`, a `justfile`, a `Makefile` target) over raw tool invocations — they encode the project's authoritative gate. If this repo's `CLAUDE.md` documents the toolchain, that documentation wins over guessing from files.
-
-## Step 1: Identify the checkpoint branch, fork point, and the two commit sets
-
-Resolve the checkpoint branch: the current branch if it matches `checkpoints/cp-*`, otherwise ask which one.
+The checkpoint branch is the current branch if it matches `checkpoints/cp-*`. Otherwise ask which one.
 
 ```bash
 git fetch origin
-fork=$(git merge-base <checkpoint-branch> main)
-git log --oneline "$fork"..<checkpoint-branch>   # cp_commits: what the checkpoint branch did
-git log --oneline "$fork"..main                  # main_commits: what landed on main in parallel
+fork=$(git merge-base <cp-branch> origin/<default>)
+git log --oneline "$fork"..<cp-branch>         # the review's commits
+git log --oneline "$fork"..origin/<default>    # the parallel commits
+git diff --name-only "$fork"..origin/<default> # files to sweep in step 4
 ```
 
-If `main_commits` is empty, there is nothing to forward-apply — skip straight to Step 3 (merge) and Step 5 (verify); Step 4's sweep has no target.
+## 2. List the rules the review set
 
-If `main_commits` is non-empty, note every file it touches — that's the sweep surface for Step 4:
+Read, in this order:
+
+1. `checkpoints/cp-<date>/revision*.md`: the comments and what was done for each. This is the main source.
+2. The diff of `CLAUDE.md` and `docs/` from `$fork` to the checkpoint branch: any new rule there holds everywhere from now on.
+3. The code diff of the checkpoint branch, for changes the revision files do not explain.
+
+Write each rule down before you change anything:
+
+- **Rule**: before and after, exact enough to find elsewhere (for example "`foo_helper` is now `build_config`", or "Rust modules with children use `<name>/mod.rs`").
+- **Why**: from the revision file.
+- **Limit**: where it does not apply.
+
+Rules are of two kinds. Mechanical ones (renames, layout, import style) you can find with a search. Fixes to a pattern (the same bug shape, the same duplicated logic) need you to read the parallel code and judge.
+
+## 3. Merge the default branch into the checkpoint branch
 
 ```bash
-git diff --name-only "$fork"..main
+git checkout <cp-branch>
+git merge origin/<default>
 ```
 
-## Step 2: Extract the convention/optimization delta from the checkpoint branch
+Resolve conflicts by reading both sides and keeping the intent of both, never by taking one side blindly. Ask the user when a conflict is too unclear to resolve with confidence. Do not abort the merge unless the user asks.
 
-Read, in priority order, to build a concrete list of rules:
+## 4. Apply the rules to the parallel work
 
-1. **`checkpoints/cp-*/revision.md` on the checkpoint branch.** This is the authoritative, purpose-written record — `revise` populates it with exactly which convention was applied, why, and to which files. Trust it over re-deriving from the raw diff.
-2. **Diff of `CLAUDE.md` / `docs/*.md` between `$fork` and the checkpoint tip.** Any new bullet or rule here is a convention that should hold everywhere from this point on, including files the checkpoint branch never touched.
-3. **Diff of source files between `$fork` and the checkpoint tip, for hunks `revision.md` doesn't already explain.** Distinguish two kinds:
-   - **Convention (mechanical/style) deltas** — the same small transformation repeated across otherwise-unrelated files (import grouping, renaming a helper, adopting a new error-handling idiom). These are grep-able: you can state a before/after pattern precisely.
-   - **Optimization/fix deltas** — a localized logic change that does the same job faster, more correctly, or more idiomatically in one place. These require reading the new code on `main`'s side and judging whether the same shape recurs there, not pattern-matching text.
+Go through the files from step 1, except the ones the checkpoint branch already fixed:
 
-For each extracted rule, write down three things before touching any file:
-- **Rule**: before pattern → after pattern, stated concretely enough to recognize elsewhere (e.g. "multiple single-item `use` statements from the same module at one brace level → merged into one `use module::{a, b};`").
-- **Why**: quote the `revision.md` rationale if there is one.
-- **Boundary**: the condition under which the rule does *not* apply (e.g. "unless merging would nest a path of 2+ segments inside the braces").
+- Mechanical rules: search for the "before" form, change it to the "after" form, respecting the limit. Search the whole tree for old names after a rename.
+- Pattern fixes: read the code, and fix it where the same shape occurs. Where a rule seems to apply but does not fit, leave the code and note why.
 
-This checklist is the input to Step 4 — nothing gets applied yet.
+If no rule applies to any parallel file, say so explicitly.
 
-## Step 3: Merge
+## 5. Check
 
-```bash
-git checkout main
-git pull origin main
-git merge --no-ff <checkpoint-branch>
-```
+Run the project's gate (the commands in `CLAUDE.md`). Fix what fails, including what the sweep broke. Fix the sweep, do not undo it. Commit the sweep apart from the merge commit.
 
-If conflicts occur, resolve them the same way as `merge-pr` Step 3: read the conflict markers, understand both sides, apply the correct resolution with Edit (never blindly accept one side), `git add`, `git commit --no-edit`. Never `git merge --abort` unless explicitly asked.
+## 6. Write `checkpoints/cp-<date>/merge-notes.md`
 
-## Step 4: Sweep `main_commits`' files for the convention/optimization delta
+- The parallel commits (hash and headline, or PR numbers).
+- Each rule from step 2, and the files it was applied to.
+- Places where a rule seemed to apply but was left, and why.
 
-This is the step `merge-pr` doesn't have. Work from the file list gathered in Step 1, minus any file the checkpoint branch's own commits already fixed (those are already consistent post-merge).
+Commit it with the sweep.
 
-**For convention deltas:** grep each candidate file for the "before" pattern from Step 2 and apply the "after" pattern with Edit, respecting the boundary condition. Because these rules are mechanical, batch them — don't re-derive the rule per file.
+## 7. Land the branch
 
-**For optimization/fix deltas:** read each remaining file's relevant section and judge whether it reproduces the shape the checkpoint fixed (duplicated algorithm, same bug pattern, same avoidable allocation/clone). Apply the equivalent fix. If a file's logic is different enough that the fix doesn't obviously transfer, leave it and note why in the merge notes (Step 6) rather than forcing a fit.
+If the repo has a GitHub remote, land it through PRs and merge them with merge commits (`gh pr merge --merge`), not squash or rebase:
 
-If Step 2 found no rules that apply to any file in the sweep surface (the checkpoint's changes were purely local to files it already touched), say so explicitly rather than silently skipping — this step should always produce either applied fixes or a stated reason there was nothing to apply.
+- One PR from the checkpoint branch, normally.
+- Stacked PRs (with `gh-stack`) when the branch is large, for example many commits across unrelated areas, so each part can be read on its own. Small changes do not need their own PR.
 
-## Step 5: Format and verify
+If a PR runs a Codex review, wait at most 30 minutes for it, then go on without it and tell the user. Without a GitHub remote, merge locally with `git merge --no-ff` and ask before pushing the default branch.
 
-Run the repo's formatter, then its full test/build/lint suite (same tables as `merge-pr` Steps 4–5: `cargo fmt`/`cargo test`/`cargo clippy` for Rust, the repo's wrapper scripts or `ruff`/`pytest`/`pyright` for Python, both for mixed). Fix anything that breaks — including anything broken by Step 4's sweep — and re-run until clean. Commit fixes separately from the merge commit.
+## 8. Bring a newer checkpoint up to date
 
-## Step 6: Record what was forward-applied
+If a newer `checkpoints/cp-*` branch exists, merge the updated default branch into it (the user means the default branch with this checkpoint already merged). Then refresh that checkpoint's `review.md` (or its guidelines, for an older checkpoint) for the new code: correct paths and names that changed, mark problems that are now fixed, and add problems that the merged work brings in. Commit and push.
 
-If the repo has a `checkpoints/` directory, write (or append to) `checkpoints/cp-<timestamp>/merge-notes.md` documenting:
-- Which commits from `main_commits` existed in parallel (list, with hashes).
-- Each convention/optimization rule extracted in Step 2, and which of those parallel files it was applied to.
-- Any file where a rule plausibly applied but wasn't forward-ported, and why.
+## 9. Clean up
 
-This is the audit trail for a judgment call, not a mechanical merge — without it, a future reviewer can't tell whether inconsistency was intentional or missed. Commit this file together with the sweep's fixes.
-
-If the repo also uses per-checkpoint changelogs (`checkpoints/cp-*/changelog-after-*.md`, see `make-checkpoint`), leave those alone — they track work *after* a checkpoint, not the reconciliation this skill performs.
-
-## Step 7: Push
-
-```bash
-git push origin main
-```
-
-Confirm with the user before pushing, as with any push to a shared branch.
-
-## Step 8: Branch cleanup (optional)
-
-Ask before deleting the checkpoint branch locally and/or on the remote — checkpoint branches are sometimes kept for historical review reference. Don't assume.
-
-## Error handling
-
-- **Merge conflicts too complex to resolve confidently**: ask the user rather than guessing.
-- **A convention rule from Step 2 is ambiguous** (e.g. `revision.md` names a pattern but the boundary condition is unclear from a single example): apply it to the unambiguous cases, flag the ambiguous ones in the merge notes instead of guessing.
-- **Verification fails after the sweep**: fix in the code, not by reverting the sweep — a broken forward-applied fix is a bug in the fix, not a reason to skip consistency.
-- **No previous checkpoint / first checkpoint on this branch**: `main_commits` is just "everything on main since the checkpoint branch was created" — same procedure, no special case.
-
-## Example
-
-Checkpoint branch `checkpoints/cp-260714` forked from `main` at commit `F`. While it sat in review, `revise` landed one commit on the checkpoint branch establishing a new `use`-import-merging convention (documented in `CLAUDE.md` and applied to the handful of files the checkpoint branch touched), and separately six unrelated PRs merged into `main` adding several new Rust modules that never saw that convention. `merge-cp` merges the checkpoint branch into `main`, then greps the six PRs' new files for the same same-module multi-`use` pattern the convention describes and merges those too — so the convention holds across the whole codebase, not just the files the checkpoint branch happened to edit — and records exactly which files were swept in `checkpoints/cp-260714/merge-notes.md`.
+- Delete the merged branches, local and remote, including the stacked PR branches.
+- Ask before removing the worktree `.worktrees/cp-<date>`. It holds the user's gitignored `x_*` files, such as `x_review_comments.md`, which a removal deletes. Offer to copy them first.
