@@ -1,6 +1,6 @@
 ---
 name: make-cp
-description: Make a review checkpoint after a period of development. Creates the branch checkpoints/cp-YYMMDD in its own worktree, studies what changed since the last checkpoint, checks it against the concerns the user raised in past reviews, and writes one review.md with the problems found and numbered places to look, plus an x_review_comments.md outline for the user's comments. Use when the user asks to make or create a checkpoint, or to start a periodic review.
+description: Make a review checkpoint after a period of development. Creates the branch checkpoints/cp-YYMMDD in its own worktree, studies what changed since the last checkpoint, checks it against the concerns the user raised in past reviews, and writes one review.md with the problems that need the user's decision, the minor problems it can fix after approval, and the few high-level matters the user must look at, plus an x_review_comments.md outline for the user's comments. Use when the user asks to make or create a checkpoint, or to start a periodic review.
 ---
 
 # Make Checkpoint
@@ -8,11 +8,17 @@ description: Make a review checkpoint after a period of development. Creates the
 A checkpoint starts a review cycle:
 
 1. This skill makes the branch, the worktree and `checkpoints/cp-YYMMDD/review.md`. The commit that adds `review.md` goes on the default branch too, so that development can go on there after it while the review runs.
-2. The user reads the code, asks questions, and writes comments in `x_review_comments.md` (gitignored), under headings such as `General Comments - Round 1` or `Comments on Tests - Priority 3`.
+2. The user reads the code, asks questions, and writes comments in `x_review_comments.md` (gitignored), under headings such as `General Comments - Round 1`, `Comments on Minor Problems` or `Comments on Where to Look - 2`.
 3. `/revise` applies one section of comments at a time.
 4. `/merge-cp` brings the branch back into the default branch.
 
-`review.md` is a guide for a human reviewer. Write it for that reader: what to look at and why. Leave out generic checklists, project overviews and anything `git log` already shows well.
+`review.md` is for a reviewer with little time. The user does not audit the code line by line. Do that work yourself, and give the user only:
+
+- the problems that need their decision,
+- a list of minor problems that you fix after one approval,
+- the few high-level matters that only they can decide.
+
+Leave out generic checklists, project overviews and anything `git log` already shows well.
 
 ## 1. Find the range
 
@@ -56,6 +62,8 @@ Reduce them to the 5 to 10 kinds of problem that come back. Typical ones are nam
 - Run the project's gate (the check and test commands in `CLAUDE.md`) and note the result.
 - Check each concern from step 3 against the new code and docs.
 - Look for real defects in the new code: wrong behavior, missing error handling, docs that say something the code does not do, tests that would not fail if the code broke (the code under test is mocked, the mock returns the expected value, or nothing is asserted).
+- Answer your own detail questions. A question such as "does `on_key` send the key twice if TSF calls `OnTestKeyDown` twice?" is your work, not the user's. Read the code, compare with a reference implementation, write a throwaway test or run the program. If the answer shows a defect, it is a problem (step 5). If it does not, drop the question. If you cannot settle it (for example it needs a platform you cannot run), make it a minor problem that says what to check and how.
+- Look for the high-level matters: the architecture and the split between components, public interfaces (wire protocol, CLI, config format, file locations), project layout, conventions that touch many files, a growing area with no clear owner or design, and plan items that the code now depends on. These go to "Where to look".
 
 Do not fix anything at this step. The user decides what gets fixed.
 
@@ -76,34 +84,42 @@ Then one line for the already-reviewed revisions of cp-<prev>, if any.
 
 ## Problems found
 
-F1. `path/to/file.rs:120`: what is wrong, why it matters, suggested fix.
+These need your decision.
+
+F1. `path/to/file.rs:120`: what is wrong, why it matters. Options: (a) ..., (b) .... Recommended: (a), because ....
 F2. ...
+
+## Minor problems
+
+I fix these after your approval ("approve all", or the numbers to skip or change).
+
+- M1. `path/to/file.rs:40`: what is wrong. Fix: ....
+- M2. ...
 
 ## Past concerns, checked again
 
-- <concern>: what was found, with paths, or "none found".
+- <concern>: what was found (as F or M numbers), or "none found".
 
 ## Where to look
 
-### Code - Priority 1: <area>
+### Where to Look - 1: <matter>
 
-Why: <the risk, from this cycle's changes>.
-Files: `full/path/a.rs`, `full/path/b.rs`.
-Questions: 2 to 4 specific questions a reader should be able to answer after reading these files.
+What: the decision or the direction in question, in two or three sentences.
+Why now: what in this cycle makes it matter (growth, a new platform, a second copy of the same code, a plan item).
+Options: the realistic choices, each with its cost. Recommended: one of them, and why.
+Scope: the components or the number of files it touches. Entry points: `full/path/a.rs`, `docs/x.md`.
 
-### Code - Priority 2: ...
-
-### Docs - Priority 1: ...
-
-### Tests - Priority 1: ...
+### Where to Look - 2: ...
 ```
 
 Rules:
 
-- **Problems found** holds only problems you checked against the code. Each names a place, says what is wrong and suggests a fix. A suspicion that you could not confirm is a question under a priority, not a problem.
-- At most 5 priorities for each of Code, Docs and Tests, highest risk first. Leave out an area that has nothing worth reading. The user refers to them by these exact headings ("Tests - Priority 3"), so keep the numbering stable once written.
-- Questions are specific to this code ("Does `Session::reset` drop the preedit before the commit text is sent?"), never generic ("Is error handling adequate?").
-- Keep the whole file short enough to read in about ten minutes.
+- **Problems found** and **Minor problems** hold only problems you checked against the code, each at a named place. A suspicion that you could not confirm is not in the file, except as a minor problem that says how to check it.
+- A problem is **minor** if it has one obvious fix and the fix changes no behavior that users see and no public interface: stale or wrong comments and docs, rule breaks (names, imports, writing rules), small bugs with a clear fix, duplicated code with one obvious home, missing tests for existing behavior. Write each in one line.
+- A problem goes to **Problems found** if the fix changes what users see, changes a public interface (protocol, CLI, config keys, file locations), needs a choice between options, or is large. Give the options and recommend one.
+- **Where to look** has 2 to 6 high-level matters, most important first. Each is something only the user can decide: technical (architecture, the split between components, a protocol or format, a dependency) or not (a convention or a layout that touches many files, naming across the project, what to do next). Never put line-level questions here. If there is nothing at this level, write "Nothing this cycle."
+- The user refers to items by number ("F2", "M5", "Where to Look - 2"), so keep the numbering stable once written.
+- Keep the whole file short enough to read in about ten minutes. The minor list can be long, because each item is one line.
 
 ## 6. Write the comment outline
 
@@ -116,11 +132,9 @@ If `x_review_comments.md` does not exist in the worktree, create it with an empt
 
 ## Comments on Problems Found
 
-## Comments on Code - Priority 1
-...
-## Comments on Docs - Priority 1
-...
-## Comments on Tests - Priority 1
+## Comments on Minor Problems
+
+## Comments on Where to Look - 1
 ...
 ```
 
@@ -147,7 +161,7 @@ git -C <main checkout> merge --ff-only origin/<default-branch>   # skip if it ha
 
 If the push to the default branch fails because the branch moved again, fetch and rebase again. Never merge the default branch into the checkpoint branch at this step.
 
-Tell the user the worktree path, the path of `review.md`, the problems found (one line each), and the priority headings.
+Tell the user the worktree path, the path of `review.md`, the problems found (one line each, with the recommended option), the number of minor problems, and the "Where to look" matters (one line each). Say that `/revise` on "Comments on Minor Problems" fixes the minor problems after their approval.
 
 ## Older checkpoints
 
