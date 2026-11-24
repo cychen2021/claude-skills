@@ -52,6 +52,7 @@ Read what the user asked for in earlier reviews of this project:
 
 - `checkpoints/cp-*/revision*.md` (the "comments" part of each)
 - `checkpoints/cp-*/merge-notes.md` (the rules that were swept across the code)
+- `checkpoints/cp-*/review-comments.md` (the user's own comments, archived at each merge)
 - any `x_review_comments.md` still present in the repo or in `.worktrees/*/`
 - the rules in `CLAUDE.md`
 

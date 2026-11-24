@@ -1,6 +1,6 @@
 ---
 name: merge-cp
-description: Merge a checkpoint branch (checkpoints/cp-YYMMDD, made by make-cp and changed by revise) back into the default branch. Merges the default branch into the checkpoint branch first, applies the rules the review set to the code that landed in parallel, runs the checks, writes merge-notes.md, merges the branch into the default branch with a merge commit (no PR), brings any newer checkpoint branch up to date, and cleans up. Use when the user asks to merge a checkpoint, land a checkpoint, or reconcile a checkpoint branch with main.
+description: Merge a checkpoint branch (checkpoints/cp-YYMMDD, made by make-cp and changed by revise) back into the default branch. Merges the default branch into the checkpoint branch first, applies the rules the review set to the code that landed in parallel, runs the checks, writes merge-notes.md, archives the review comments, merges the branch into the default branch with a merge commit (no PR), brings any newer checkpoint branch up to date, and cleans up. Use when the user asks to merge a checkpoint, land a checkpoint, or reconcile a checkpoint branch with main.
 ---
 
 # Merge Checkpoint Branch
@@ -67,6 +67,14 @@ Run the project's gate (the commands in `CLAUDE.md`). Fix what fails, including 
 
 Commit it with the sweep.
 
+## 6a. Archive the review comments
+
+Copy the user's `x_review_comments.md` from the worktree to `checkpoints/cp-<date>/review-comments.md`, and commit it with the merge notes. It keeps the user's own words, which the revision files only summarize, and `make-cp` reads it in later reviews.
+
+- Keep the words as they are. Fix only what the Markdown linter of the project needs (blank lines, a language on a code block).
+- Read it all first. The archive goes into the repo, and others can read it, even in a private repo. If it holds something that must not go there (a secret, personal data of anyone, a local path, a private remark about a person), do not archive it. Tell the user what you found and ask how to go on.
+- Do not archive it if the user asks you not to.
+
 ## 7. Land the branch
 
 Merge the checkpoint branch into the default branch with a merge commit, so the history shows where the checkpoint came in:
@@ -87,4 +95,4 @@ If a newer `checkpoints/cp-*` branch exists, merge the updated default branch in
 ## 9. Clean up
 
 - Delete the merged branch, local and remote.
-- Ask before removing the worktree `.worktrees/cp-<date>`. It holds the user's gitignored `x_*` files, such as `x_review_comments.md`, which a removal deletes. Offer to copy them first.
+- Ask before removing the worktree `.worktrees/cp-<date>`. A removal deletes the user's gitignored `x_*` files. `x_review_comments.md` is archived (step 6a), but name any other `x_*` file and offer to copy it first.
