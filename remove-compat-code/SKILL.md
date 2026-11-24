@@ -57,7 +57,7 @@ scripts/install.py
   keep    unknown-key warning (reword)    general check of user input
 ```
 
-If the user already asked to remove this code without a review, apply the clear cases at once, and ask only about the unsure ones. Otherwise wait for approval. The user can remove lines from the list.
+Always wait for the user's approval before you remove anything, also when the user already asked you to remove such code. The user can remove lines from the list.
 
 ## 5. Remove
 
