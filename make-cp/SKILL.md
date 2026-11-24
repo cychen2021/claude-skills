@@ -16,6 +16,7 @@ A checkpoint starts a review cycle:
 
 - the problems that need their decision,
 - a list of minor problems that you fix after one approval,
+- the checks that you could not run yourself, with the steps to run them,
 - the few high-level matters that only they can decide.
 
 Leave out generic checklists, project overviews and anything `git log` already shows well.
@@ -62,7 +63,7 @@ Reduce them to the 5 to 10 kinds of problem that come back. Typical ones are nam
 - Run the project's gate (the check and test commands in `CLAUDE.md`) and note the result.
 - Check each concern from step 3 against the new code and docs.
 - Look for real defects in the new code: wrong behavior, missing error handling, docs that say something the code does not do, tests that would not fail if the code broke (the code under test is mocked, the mock returns the expected value, or nothing is asserted).
-- Answer your own detail questions. A question such as "does `on_key` send the key twice if TSF calls `OnTestKeyDown` twice?" is your work, not the user's. Read the code, compare with a reference implementation, write a throwaway test or run the program. If the answer shows a defect, it is a problem (step 5). If it does not, drop the question. If you cannot settle it (for example it needs a platform you cannot run), make it a minor problem that says what to check and how.
+- Answer your own detail questions. A question such as "does this handler run twice when the event comes twice?" is your work, not the user's. Read the code and its callers, read the docs of the library or system it calls, compare with a reference implementation if the project names one, write a throwaway test or run the program. If the answer shows a defect, it is a problem (step 5). If it does not, drop the question. If you cannot settle it (it needs a platform, a device, an account or a service that you cannot use), it goes to "Needs your check" (step 5).
 - Look for the high-level matters: the architecture and the split between components, public interfaces (wire protocol, CLI, config format, file locations), project layout, conventions that touch many files, a growing area with no clear owner or design, and plan items that the code now depends on. These go to "Where to look".
 
 Do not fix anything at this step. The user decides what gets fixed.
@@ -96,9 +97,16 @@ I fix these after your approval ("approve all", or the numbers to skip or change
 - M1. `path/to/file.rs:40`: what is wrong. Fix: ....
 - M2. ...
 
+## Needs your check
+
+I could not settle these. Each needs a run on your side.
+
+C1. `path/to/file.rs:80`: what may be wrong, and why it matters if it is. Check: the exact steps (platform, commands, what to type or click). A problem if: the result that shows the defect. Then: what I would fix.
+C2. ...
+
 ## Past concerns, checked again
 
-- <concern>: what was found (as F or M numbers), or "none found".
+- <concern>: what was found (as F, M or C numbers), or "none found".
 
 ## Where to look
 
@@ -114,11 +122,11 @@ Scope: the components or the number of files it touches. Entry points: `full/pat
 
 Rules:
 
-- **Problems found** and **Minor problems** hold only problems you checked against the code, each at a named place. A suspicion that you could not confirm is not in the file, except as a minor problem that says how to check it.
+- **Problems found** and **Minor problems** hold only problems you checked against the code, each at a named place. A suspicion that you could not confirm and could not rule out goes to **Needs your check**, with steps that the user can follow without reading the code. A suspicion that you ruled out is not in the file. Leave out the section if it is empty.
 - A problem is **minor** if it has one obvious fix and the fix changes no behavior that users see and no public interface: stale or wrong comments and docs, rule breaks (names, imports, writing rules), small bugs with a clear fix, duplicated code with one obvious home, missing tests for existing behavior. Write each in one line.
 - A problem goes to **Problems found** if the fix changes what users see, changes a public interface (protocol, CLI, config keys, file locations), needs a choice between options, or is large. Give the options and recommend one.
 - **Where to look** has 2 to 6 high-level matters, most important first. Each is something only the user can decide: technical (architecture, the split between components, a protocol or format, a dependency) or not (a convention or a layout that touches many files, naming across the project, what to do next). Never put line-level questions here. If there is nothing at this level, write "Nothing this cycle."
-- The user refers to items by number ("F2", "M5", "Where to Look - 2"), so keep the numbering stable once written.
+- The user refers to items by number ("F2", "M5", "C1", "Where to Look - 2"), so keep the numbering stable once written.
 - Keep the whole file short enough to read in about ten minutes. The minor list can be long, because each item is one line.
 
 ## 6. Write the comment outline
@@ -133,6 +141,8 @@ If `x_review_comments.md` does not exist in the worktree, create it with an empt
 ## Comments on Problems Found
 
 ## Comments on Minor Problems
+
+## Comments on Needs Your Check
 
 ## Comments on Where to Look - 1
 ...
@@ -161,7 +171,7 @@ git -C <main checkout> merge --ff-only origin/<default-branch>   # skip if it ha
 
 If the push to the default branch fails because the branch moved again, fetch and rebase again. Never merge the default branch into the checkpoint branch at this step.
 
-Tell the user the worktree path, the path of `review.md`, the problems found (one line each, with the recommended option), the number of minor problems, and the "Where to look" matters (one line each). Say that `/revise` on "Comments on Minor Problems" fixes the minor problems after their approval.
+Tell the user the worktree path, the path of `review.md`, the problems found (one line each, with the recommended option), the number of minor problems, the checks that need a run on their side (one line each), and the "Where to look" matters (one line each). Say that `/revise` on "Comments on Minor Problems" fixes the minor problems after their approval.
 
 ## Older checkpoints
 

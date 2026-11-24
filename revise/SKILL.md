@@ -12,7 +12,7 @@ Apply one section (or several) of the user's review comments on a checkpoint mad
 - Checkpoint: from the branch name `checkpoints/cp-<date>`, or else the newest `checkpoints/cp-*/`. Work in that branch's worktree (`.worktrees/cp-<date>`) if there is one.
 - Comments: `x_review_comments.md` at the root of the worktree. If it is missing, ask the user where the comments are.
 - Sections to do: the ones the user names. If the user names none, do every section that is not empty and not marked `[DONE]`. Ignore the rest of the file, including text the user adds while you work, unless they ask you to read it.
-- References such as "F2", "M5" or "Where to Look - 2" point into `checkpoints/cp-<date>/review.md`. Checkpoints made before "Minor problems" existed use "Priority 3" or "Tests - Priority 3" instead. In checkpoints made before `review.md` existed, they point into `code-review-guidelines.md`, `doc-review-guidelines.md` or `test-audit-guidelines.md`.
+- References such as "F2", "M5", "C1" or "Where to Look - 2" point into `checkpoints/cp-<date>/review.md`. Checkpoints made before "Minor problems" existed use "Priority 3" or "Tests - Priority 3" instead. In checkpoints made before `review.md` existed, they point into `code-review-guidelines.md`, `doc-review-guidelines.md` or `test-audit-guidelines.md`.
 - A comment may point to another file, such as an `x_*.md` plan or a paper. Read it. It is part of the comment.
 
 ## 2. Sort the comments
@@ -27,6 +27,7 @@ Approvals are requests:
 
 - "Approve all" (or "fix all", or an empty comment under a heading the user marked as approved) in "Comments on Minor Problems" asks you to fix every M item of `review.md`, except the ones the comment skips or changes. Group the minor fixes by kind (one commit for the doc fixes, one for the import rule and so on), not one commit per item.
 - "As recommended" for an F item asks for the option that `review.md` recommends.
+- A result for a C item (from "Comments on Needs Your Check") is evidence. If it shows the defect, make the fix that the C item names. If it does not, record that the check passed and change nothing.
 
 If the section is large (for example a rename list or a restructure), write the plan in the revision file first (step 3) and tell the user in a few lines what you will do. Wait only if something is unclear.
 
