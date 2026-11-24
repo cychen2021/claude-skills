@@ -131,18 +131,18 @@ Rules:
 
 ## 6. Write the comment outline
 
-If `x_review_comments.md` does not exist in the worktree, create it with an empty heading for each item of `review.md`:
+If `x_review_comments.md` does not exist in the worktree, create it with an empty heading for each item of `review.md`. "Needs Your Check" comes before the problems, because the results of the checks can decide problems and minor problems (a check that shows a defect makes its fix a request):
 
 ```markdown
 # Review on Checkpoint cp-<date>
 
 ## General Comments - Round 1
 
+## Comments on Needs Your Check
+
 ## Comments on Problems Found
 
 ## Comments on Minor Problems
-
-## Comments on Needs Your Check
 
 ## Comments on Where to Look - 1
 ...
