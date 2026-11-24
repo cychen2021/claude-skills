@@ -1,6 +1,6 @@
 ---
 name: merge-cp
-description: Merge a checkpoint branch (checkpoints/cp-YYMMDD, made by make-cp and changed by revise) back into the default branch. Merges the default branch into the checkpoint branch first, applies the rules the review set to the code that landed in parallel, runs the checks, writes merge-notes.md, lands the branch through one PR or stacked PRs, brings any newer checkpoint branch up to date, and cleans up. Use when the user asks to merge a checkpoint, land a checkpoint, or reconcile a checkpoint branch with main.
+description: Merge a checkpoint branch (checkpoints/cp-YYMMDD, made by make-cp and changed by revise) back into the default branch. Merges the default branch into the checkpoint branch first, applies the rules the review set to the code that landed in parallel, runs the checks, writes merge-notes.md, merges the branch into the default branch with a merge commit (no PR), brings any newer checkpoint branch up to date, and cleans up. Use when the user asks to merge a checkpoint, land a checkpoint, or reconcile a checkpoint branch with main.
 ---
 
 # Merge Checkpoint Branch
@@ -61,7 +61,7 @@ Run the project's gate (the commands in `CLAUDE.md`). Fix what fails, including 
 
 ## 6. Write `checkpoints/cp-<date>/merge-notes.md`
 
-- The parallel commits (hash and headline, or PR numbers).
+- The parallel commits (hash and headline).
 - Each rule from step 2, and the files it was applied to.
 - Places where a rule seemed to apply but was left, and why.
 
@@ -69,12 +69,16 @@ Commit it with the sweep.
 
 ## 7. Land the branch
 
-If the repo has a GitHub remote, land it through PRs and merge them with merge commits (`gh pr merge --merge`), not squash or rebase:
+Merge the checkpoint branch into the default branch with a merge commit, so the history shows where the checkpoint came in:
 
-- One PR from the checkpoint branch, normally.
-- Stacked PRs (with `gh-stack`) when the branch is large, for example many commits across unrelated areas, so each part can be read on its own. Small changes do not need their own PR.
+```bash
+git checkout <default>
+git merge --no-ff <cp-branch>
+```
 
-If a PR runs a Codex review, wait at most 30 minutes for it, then go on without it and tell the user. Without a GitHub remote, merge locally with `git merge --no-ff` and ask before pushing the default branch.
+Ask the user before pushing the default branch.
+
+Do not open a PR. The review already happened in `review.md` and the revision files.
 
 ## 8. Bring a newer checkpoint up to date
 
@@ -82,5 +86,5 @@ If a newer `checkpoints/cp-*` branch exists, merge the updated default branch in
 
 ## 9. Clean up
 
-- Delete the merged branches, local and remote, including the stacked PR branches.
+- Delete the merged branch, local and remote.
 - Ask before removing the worktree `.worktrees/cp-<date>`. It holds the user's gitignored `x_*` files, such as `x_review_comments.md`, which a removal deletes. Offer to copy them first.
