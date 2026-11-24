@@ -37,6 +37,18 @@ git branch -d <branch> 2>/dev/null
 
 If branch protection blocks the merge, tell the user. Do not use `--admin` unless they say so. If the PR has a Codex review still running after 30 minutes, do not wait for it.
 
+### Stacked PRs
+
+A PR that is part of a stack (the `gh-stack` skill) cannot be merged with `gh pr merge` or the normal merge API, and its base cannot be changed. Merge the stack from the bottom up, one PR at a time, with the asynchronous merge API, which also takes the merge method:
+
+```bash
+gh api -X PUT repos/:owner/:repo/pulls/<number>/merge-async -f merge_method=merge -f merge_action=direct_merge
+# Poll until "status" is "merged" (or "failed"), with the uuid from the reply:
+gh api repos/:owner/:repo/pulls/<number>/merge-async/<uuid>
+```
+
+Do step 2 and step 3 only once, on the top branch of the stack, before the first merge. They test the code of all PRs together. After a PR merges, GitHub moves the next PR onto the default branch and rebases its commits, so they get new hashes. Before the next merge, check that the new head has the same files as your local branch (`git diff --stat <old head> <new head>` is empty). After the last merge, delete the branches of the stack. Use `git branch -D` for the local branches, because the new hashes make Git think that they are not merged.
+
 ## 5. Without a PR
 
 ```bash

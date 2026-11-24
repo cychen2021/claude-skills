@@ -7,6 +7,8 @@ description: Finish feature work (an added, changed or removed feature) started 
 
 Finish the work that `/start-feature-work` started.
 
+For a stack of PRs, finish each PR from the bottom of the stack up. Each PR gets its own checks, its own body and one Codex review of its own. A fix that belongs to a lower PR goes on that branch, then rebase the PRs above it (`gh stack rebase --upstack`) and push them.
+
 ## 1. Checks and tests
 
 Run the project's own gate: the commands its `CLAUDE.md` names (for example `format.py`, `type_check.py`, `runtest.py`, a `justfile` or a `Makefile` target). If it names none, use the usual formatter, linter, type checker and test runner of the language. Fix every failure. Do not skip or weaken a failing test to get the PR out.
