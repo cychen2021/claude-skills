@@ -7,7 +7,7 @@ description: Make a review checkpoint after a period of development. Creates the
 
 A checkpoint starts a review cycle:
 
-1. This skill makes the branch, the worktree and `checkpoints/cp-YYMMDD/review.md`.
+1. This skill makes the branch, the worktree and `checkpoints/cp-YYMMDD/review.md`. The commit that adds `review.md` goes on the default branch too, so that development can go on there after it while the review runs.
 2. The user reads the code, asks questions, and writes comments in `x_review_comments.md` (gitignored), under headings such as `General Comments - Round 1` or `Comments on Tests - Priority 3`.
 3. `/revise` applies one section of comments at a time.
 4. `/merge-cp` brings the branch back into the default branch.
@@ -131,8 +131,21 @@ Do not commit it. It is the user's file.
 ```bash
 git add checkpoints/cp-<date>/review.md .gitignore
 git commit -m "Add checkpoint cp-<date>"
-git push -u origin checkpoints/cp-<date>
+git fetch origin
 ```
+
+The checkpoint commit is the first commit of the branch and also goes on the default branch. The next checkpoint finds its range from this commit (step 1), and `/merge-cp` finds the parallel work from it.
+
+- If `origin/<default-branch>` did not move since step 2, the push below is a fast-forward.
+- If it moved, run `git rebase origin/<default-branch>` (the branch has only this one commit, and it is not pushed yet). The new commits on the default branch were not studied. Extend the `Range:` line of `review.md` to the new head, list those commits under "What changed" as "landed during the review, not studied", amend the commit, and tell the user.
+
+```bash
+git push origin HEAD:<default-branch>       # fast-forward only, never --force
+git push -u origin checkpoints/cp-<date>
+git -C <main checkout> merge --ff-only origin/<default-branch>   # skip if it has local changes or another branch
+```
+
+If the push to the default branch fails because the branch moved again, fetch and rebase again. Never merge the default branch into the checkpoint branch at this step.
 
 Tell the user the worktree path, the path of `review.md`, the problems found (one line each), and the priority headings.
 
