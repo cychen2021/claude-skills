@@ -72,7 +72,7 @@ Wait for approval. The user can approve all, or remove lines from the list.
 
 ## 7. Commit
 
-Follow the project's commit rules. If the current branch is the default branch, make a branch first. Make one commit, for example "Remove tests that check library behavior". The body lists the deleted tests and the merges. Push and open a pull request only as the project's workflow says.
+Follow the project's commit rules for the message. Make one commit on the current branch, also when it is the default branch, for example "Remove tests that check library behavior". The body lists the deleted tests and the merges. The change touches only tests and the user approved the list, so it needs no branch and no pull request. Push the branch if it has a remote.
 
 ## 8. Report
 
