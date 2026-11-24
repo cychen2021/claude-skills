@@ -56,7 +56,7 @@ Do not request a review on the draft (no `@codex review`, no reviewers). `/finis
 ## 5. Do the work
 
 - Follow the project's `CLAUDE.md`. It overrides anything here.
-- Add or update tests together with the code they test.
+- Add or update tests together with the code they test. Add a test only when it is worth its cost by `../trim-tests/test-value.md` (the `trim-tests` skill). Change or extend an existing test before you write a new one.
 - For **remove**: delete cleanly. Leave no commented-out old code, no TODO that names the removed feature, and no dependency that only the removed code used.
 - One commit per concern. A large change is several commits, for example a preparatory rename that changes no behavior, then each part with its tests, then docs that span them. Each commit must build.
 - Commit and push each unit of work as soon as it passes the project's checks. Do not leave finished work uncommitted at the end of a session: uncommitted changes are lost on a branch switch, `git clean` or a new session. If the work is not ready to commit, `git stash` it.

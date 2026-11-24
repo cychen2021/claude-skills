@@ -127,7 +127,7 @@ gh api repos/:owner/:repo/pulls/<pr>/reviews --jq '.[] | {user: .user.login, sta
 For each comment:
 
 1. Check the claim against the code before acting. Automated reviews make confident false claims. If it is wrong, change nothing and say why.
-2. If it is real, fix it, add a test that would have caught it, and run the checks again.
+2. If it is real, fix it and run the checks again. Add a test only if the bug deserves one by `../trim-tests/test-value.md` (the `trim-tests` skill), and then first try to add a case to an existing test.
 3. Commit (mention "From Codex review on #<pr>" in the body) and push.
 4. Reply on the thread (what changed, or why it does not apply), then resolve the thread. Resolve only threads you acted on:
 
